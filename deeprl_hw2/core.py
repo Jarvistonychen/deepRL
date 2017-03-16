@@ -35,10 +35,10 @@ class Sample:
       True if this action finished the episode. False otherwise.
     """
 
-    state = np.zeros((frame_resize, frame_resize, frame_int))
+    state = np.zeros((frame_int, frame_resize, frame_resize))
     action = 0
     reward = 0
-    next_state = np.zeros((frame_resize, frame_resize, frame_int))
+    next_state = np.zeros((frame_int, frame_resize, frame_resize))
     is_terminal = False
 
 
@@ -203,7 +203,7 @@ class ReplayMemory:
     clear()
       Reset the memory. Deletes all references to the samples.
     """
-    def __init__(self, max_size=1e6, window_length):
+    def __init__(self, max_size=1e6, window_length=4):
         """Setup memory.
 
         You should specify the maximum size o the memory. Once the
@@ -220,17 +220,17 @@ class ReplayMemory:
 	self.memory = [Sample() for i in range(max_size)]
 
     def append(self, state, action, reward, next_state, is_terminal):
-	sample = Sample()
+	#sample = Sample()
+	sample = self.memory[self.pointer]
 	sample.state = np.copy(state)
 	sample.action = action
 	sample.reward = reward
 	sample.next_state = np.copy(next_state)
 	sample.is_terminal = is_terminal
-	self.memory[self.pointer] = sample
 	if self.pointer >= max_size - 1:
 		self.pointer = 0
 	else:
-		self.pointer++
+		self.pointer += 1
 
     def end_episode(self, final_state, is_terminal):
         raise NotImplementedError('This method should be overridden')

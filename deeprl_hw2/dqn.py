@@ -12,8 +12,8 @@ class DQNAgent:
     IMG_ROWS , IMG_COLS = 84, 84
     WINDOW = 4
     TARGET_QNET_RESET_INTERVAL = 10000
-    #TODO: SAMPLES_BURN_IN=?
-    #TODO: TRAINING_FREQUENCY=
+    SAMPLES_BURN_IN = 10000
+    TRAINING_FREQUENCY=4
     """Class implementing DQN.
 
     This is a basic outline of the functions/parameters you will need
@@ -70,37 +70,71 @@ class DQNAgent:
         self.policy=policy
         self.gamma=gamma
         self.target_update_freq=target_update_freq
-        self.num_burn_inum_burn_in
+        self.num_burn_in = num_burn_in
         self.train_freq=train_freq
         self.batch_size=batch_size
-        pass
 
 
 
 
     def create_model(window, input_shape, num_actions, model_name='q_network'):  # noqa: D103
-    
-        model = Sequential()
-        
-        model.add(Convolution2D(16, 8, 8, subsample=(4, 4), border_mode='same',input_shape=(window,input_shape[0],input_shape[1])))
-        model.add(Activation('relu'))
+	"""Create the Q-network model.
+
+	 Use Keras to construct a keras.models.Model instance (you can also
+	 use the SequentialModel class).
+
+	 We highly recommend that you use tf.name_scope as discussed in
+	 class when creating the model and the layers. This will make it
+	 far easier to understnad your network architecture if you are
+	 logging with tensorboard.
+
+	 Parameters
+	 ----------
+	 window: int
+	   Each input to the network is a sequence of frames. This value
+	   defines how many frames are in the sequence.
+	 input_shape: tuple(int, int)
+	   The expected input image size.
+	 num_actions: int
+	   Number of possible actions. Defined by the gym environment.
+	 model_name: str
+	   Useful when debugging. Makes the model show up nicer in tensorboard.
+
+	 Returns
+	 -------
+	 keras.models.Model
+	   The Q-model.
+	 """
+
+        #model = Sequential()
+        #
+        #model.add(Conv2D(16, (8, 8), strides=4, padding='same',use_bias=True,input_shape=(window,input_shape[0],input_shape[1]), data_format='channels_first'))
+        #model.add(Activation('relu'))
+        #        
+        #model.add(Conv2D(32, (4, 4), strides=2, padding='same',use_bias=True,data_format='channels_first'))
+        #model.add(Activation('relu'))
+        #                
+	#model.add(Flatten())
+        #model.add(Dense(256))
+        #model.add(Activation('relu'))
+        #                        
+        #model.add(Dense(num_actions))
+        ##model.add(Multiply())
+        #model.add(Activation('softmax'))
+
+	a = Input(shape=(window,input_shape[0],input_shape[1]))
+	a2 = Input(shape=(output_shape,))
+   	b = Conv2D(16, (8, 8), strides=4, padding='same',use_bias=True,activation='relu', data_format='channels_first')(a1)
                 
-        model.add(Convolution2D(32, 4, 4, subsample=(2, 2), border_mode='same'))
-        model.add(Activation('relu'))
-                        
-        model.add(Dense(256))
-        model.add(Activation('relu'))
-                                
-        model.add(Dense(num_actions))
-                                    
-        adam = Adam(lr=LEARNING_RATE)
-                                        
-        #change the loss in order to have two networks
-        model.compile(loss='mse',optimizer=adam)
-                                            
+        c = Conv2D(32, (4, 4), strides=2, padding='same',use_bias=True,activation='relu', data_format='channels_first')(b)
+	d = Flatten()(c)
+        e = Dense(256, activation='relu')(d)
+	f = Dense(num_actions)(e)
+        g = Activation('softmax')(f)
+        h = Multiply([g,a2])
+        model = Model(inputs=[a1,a2], outputs=[h])  
         return model
     
-        pass
 
     def compile(self, optimizer, loss_func):
         """Setup all of the TF graph variables/ops.
@@ -119,7 +153,9 @@ class DQNAgent:
         keras.optimizers.Optimizer class. Specifically the Adam
         optimizer.
         """
-        pass
+
+        adam = Adam(lr=LEARNING_RATE)
+	self.q_network.compile(loss=loss_func, optimizer = adam)
 
     def calc_q_values(self, state):
         """Given a state (or batch of states) calculate the Q-values.
@@ -130,7 +166,7 @@ class DQNAgent:
         ------
         Q-values for the state(s)
         """
-        pass
+	return self.q_network.predict(state, batch_size = 1)
 
     def select_action(self, state, **kwargs):
         """Select the action based on the current state.
@@ -213,3 +249,6 @@ class DQNAgent:
         visually inspect your policy.
         """
         pass
+
+    def update_memory(self, state, action, reward, next_state, is_terminal):
+	self.memory.append(state, action, reward, next_state, is_terminal)

@@ -1,6 +1,7 @@
 """Loss functions."""
 
 import tensorflow as tf
+import numpy as np
 #import semver
 
 
@@ -24,7 +25,13 @@ def huber_loss(y_true, y_pred, max_grad=1.):
     tf.Tensor
       The huber loss.
     """
-    pass
+    diff = np.absolute(y_true - y_pred)
+    loss = np.zeros_like(diff)
+    pos = np.where(diff <= max_grad)
+    loss[pos] =  0.5*np.power(diff[pos],2)
+    pos = np.where(diff > max_grad)
+    loss[pos] =  max_grad * (diff[pos] - 0.5*max_grad)
+    return loss
 
 
 def mean_huber_loss(y_true, y_pred, max_grad=1.):
@@ -48,4 +55,5 @@ def mean_huber_loss(y_true, y_pred, max_grad=1.):
     tf.Tensor
       The mean huber loss.
     """
-    pass
+    loss = huber_loss(y_true, y_pred, max_grad)
+    return np.mean(loss)

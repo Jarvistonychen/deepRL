@@ -18,53 +18,16 @@ from keras.models import Model
 from keras.optimizers import Adam
 
 
-import skimage as skimage
-from skimage import transform, color, exposure
-from skimage.transform import rotate
-from skimage.viewer import ImageViewer
+#import skimage as skimage
+#from skimage import transform, color, exposure
+#from skimage.transform import rotate
+#from skimage.viewer import ImageViewer
 
 import deeprl_hw2 as tfrl
 from deeprl_hw2.dqn import DQNAgent
 from deeprl_hw2.objectives import mean_huber_loss
 
 import gym
-#env = gym.make('SpaceInvaders-v0')
-#env.reset()
-#env.render()
-
-
-    
-    
-    
-    
-    """Create the Q-network model.
-
-    Use Keras to construct a keras.models.Model instance (you can also
-    use the SequentialModel class).
-
-    We highly recommend that you use tf.name_scope as discussed in
-    class when creating the model and the layers. This will make it
-    far easier to understnad your network architecture if you are
-    logging with tensorboard.
-
-    Parameters
-    ----------
-    window: int
-      Each input to the network is a sequence of frames. This value
-      defines how many frames are in the sequence.
-    input_shape: tuple(int, int)
-      The expected input image size.
-    num_actions: int
-      Number of possible actions. Defined by the gym environment.
-    model_name: str
-      Useful when debugging. Makes the model show up nicer in tensorboard.
-
-    Returns
-    -------
-    keras.models.Model
-      The Q-model.
-    """
-    pass
 
 
 def get_output_folder(parent_dir, env_name):
@@ -105,29 +68,48 @@ def get_output_folder(parent_dir, env_name):
 
 
 def main():  # noqa: D103
-    parser = argparse.ArgumentParser(description='Run DQN on Atari Breakout')
-    parser.add_argument('--env', default='SpaceInvader-v0', help='Atari env name')
-    parser.add_argument('-o', '--output', default='atari-v0', help='Directory to save data to')
+    parser = argparse.ArgumentParser(description='Run DQN on Atari Enduro')
+    parser.add_argument('--env', default='Enduro-v0', help='Atari env name')
+    parser.add_argument(
+        '-o', '--output', default='atari-v0', help='Directory to save data to')
     parser.add_argument('--seed', default=0, type=int, help='Random seed')
 
     args = parser.parse_args()
-    
     #TODO: input_shape as argument?
     #args.input_shape = tuple(args.input_shape)
 
-    args.output = get_output_folder(args.output, args.env)
+    #args.output = get_output_folder(args.output, args.env)
+
+    env = gym.make('Enduro-v0')
+    #q_network=create_model(WINDOW,tuple(IMG_ROWS,IMG_COLS),env.action_space.n)
+
+    #sess = tf.Session()
+    #from keras import backend as K
+    #K.set_session(sess)
+
+    initial_state = env.reset()
+    env.render()
+    rewards = []
+    num_steps = 0
+
+    while True:
+	    action = env.action_space.sample()
+	    print env.action_space
+	    nextstate, reward, is_terminal, debug_info = env.step(action)
+	    print nextstate.shape
+	    env.render()
+	    rewards.append(reward)
+	    state = nextstate
+	    num_steps += 1
+
+	    if is_terminal:
+		break
 
     # here is where you should start up a session,
     # create your DQN agent, create your model, etc.
     # then you can run your fit method.
+    
 
-
-    env = gym.make(args.env.action_space.n)
-    q_network=create_model(WINDOW,tuple(IMG_ROWS,IMG_COLS),env.action_space.n)
-
-    sess = tf.Session()
-    from keras import backend as K
-    K.set_session(sess)
 
 
 

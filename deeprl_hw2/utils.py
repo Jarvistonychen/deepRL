@@ -64,7 +64,7 @@ def get_soft_target_model_updates(target, source, tau):
     list(tf.Tensor)
       List of tensor update ops.
     """
-    pass
+    target.set_weights((1-tau)*target.get_weights() + tau*source.get_weights())
 
 
 def get_hard_target_model_updates(target, source):
@@ -85,4 +85,5 @@ def get_hard_target_model_updates(target, source):
     list(tf.Tensor)
       List of tensor update ops.
     """
-    pass
+    target.set_weights(source.get_weights())
+    

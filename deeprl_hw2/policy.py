@@ -92,7 +92,7 @@ class GreedyEpsilonPolicy(Policy):
      over time.
     """
     def __init__(self, epsilon):
-        pass
+	self.epsilon = epsilon
 
     def select_action(self, q_values, **kwargs):
         """Run Greedy-Epsilon for the given Q-values.
@@ -108,8 +108,12 @@ class GreedyEpsilonPolicy(Policy):
         int:
           The action index chosen.
         """
-
-    pass
+	rand_num = np.random.rand()
+	num_act = q_values.shape[0]
+	if rand_num < self.epsilon*num_act:
+		return np.random.randint(num_act)
+	else:
+		return np.argmax(q_values)
 
 
 class LinearDecayGreedyEpsilonPolicy(Policy):
