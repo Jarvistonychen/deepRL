@@ -1,5 +1,8 @@
 """Main DQN agent."""
 
+from keras.models import model_from_config, Sequential, Model, model_from_config
+import keras.optimizers as optimizers
+import keras.backend as K
 
 
 class DQNAgent:
@@ -12,8 +15,10 @@ class DQNAgent:
     IMG_ROWS , IMG_COLS = 84, 84
     WINDOW = 4
     TARGET_QNET_RESET_INTERVAL = 10000
+
     SAMPLES_BURN_IN = 10000
     TRAINING_FREQUENCY=4
+
     """Class implementing DQN.
 
     This is a basic outline of the functions/parameters you will need
@@ -52,91 +57,137 @@ class DQNAgent:
       How many samples in each minibatch.
     """
     def __init__(self,
+                 qnetwork,
                  preprocessor,
                  memory,
-                 policy,
+                 policy=None,
                  gamma=GAMMA,
                  target_update_freq=TARGET_QNET_RESET_INTERVAL,
                  num_burn_in=SAMPLES_BURN_IN,
-                 #TODO: what's that???
                  train_freq=TRAINING_FREQUENCY,
                  batch_size=BATCH_SIZE):
 
+      
+        
+        #Parameters
+        
+        # Soft vs hard target model updates.
+        if target_update_freq < 0:
+            raise ValueError('`target_update_freq` must be >= 0.')
+        elif target_update_freq >= 1:
+            # Hard update every `target_model_update` steps.
+            target_update_freq = int(target_update_freq)
+        else:
+            # Soft update with `(1 - target_model_update) * old + target_model_update * new`.
+            target_update_freq = float(target_model_update)
+        
+        if num_burn_in < 0:
+            raise ValueError('num_burn_in must be >=0')
+        else
+            self.num_burn_in=num_burn_in
 
-#TODO: initialize copy network
-        self.q_network=create_model()
-        self.qt_network=create_model()
+        if train_freq < 0:
+            raise ValueError('train_freq must be >=0')
+        else
+            self.train_freq=train_freq
+
+        if batch_size < 0:
+            raise ValueError('batch size must be >=0')
+        else
+            self.batch_size=batch_size
+        pass
+        
+        if gamma <= 0 || gamma >1.0 :
+            raise ValueError('gamma must be in [0,1]')
+        else
+            self.gamma=gamma
+
+
+
+        #Internal States
+        self.compiled=False
+        self.training=False
+        self.testing=False
+        self.observing=False
+            
+            
+
+        #Related Objects
+        self.preprocessor=preprocessor
         self.memory=memory
-        self.policy=policy
-        self.gamma=gamma
-        self.target_update_freq=target_update_freq
-        self.num_burn_in = num_burn_in
-        self.train_freq=train_freq
-        self.batch_size=batch_size
+        self.qnetwork=qnetwork
+    
+        #Agent's Policies
+        
+        #TODO: change policy so that alwayes each class has attribute num_actions
+        if policy is None:
+            self.policy = EpsGreedyQPolicy(EPSILON)
+        observing_policy = UniformRandomPolicy(self.policy.num_actions)
+        
+        #TODO: put the arguments correctly here
+        training_policy = LinearDecayGreedyEpsilonPolicy()
 
-
-
-
-    def create_model(window, input_shape, num_actions, model_name='q_network'):  # noqa: D103
-	"""Create the Q-network model.
-
-	 Use Keras to construct a keras.models.Model instance (you can also
-	 use the SequentialModel class).
-
-	 We highly recommend that you use tf.name_scope as discussed in
-	 class when creating the model and the layers. This will make it
-	 far easier to understnad your network architecture if you are
-	 logging with tensorboard.
-
-	 Parameters
-	 ----------
-	 window: int
-	   Each input to the network is a sequence of frames. This value
-	   defines how many frames are in the sequence.
-	 input_shape: tuple(int, int)
-	   The expected input image size.
-	 num_actions: int
-	   Number of possible actions. Defined by the gym environment.
-	 model_name: str
-	   Useful when debugging. Makes the model show up nicer in tensorboard.
-
-	 Returns
-	 -------
-	 keras.models.Model
-	   The Q-model.
-	 """
-
-        #model = Sequential()
-        #
-        #model.add(Conv2D(16, (8, 8), strides=4, padding='same',use_bias=True,input_shape=(window,input_shape[0],input_shape[1]), data_format='channels_first'))
-        #model.add(Activation('relu'))
-        #        
-        #model.add(Conv2D(32, (4, 4), strides=2, padding='same',use_bias=True,data_format='channels_first'))
-        #model.add(Activation('relu'))
-        #                
-	#model.add(Flatten())
-        #model.add(Dense(256))
-        #model.add(Activation('relu'))
-        #                        
-        #model.add(Dense(num_actions))
-        ##model.add(Multiply())
-        #model.add(Activation('softmax'))
-
-	a = Input(shape=(window,input_shape[0],input_shape[1]))
-	a2 = Input(shape=(output_shape,))
-   	b = Conv2D(16, (8, 8), strides=4, padding='same',use_bias=True,activation='relu', data_format='channels_first')(a1)
-                
-        c = Conv2D(32, (4, 4), strides=2, padding='same',use_bias=True,activation='relu', data_format='channels_first')(b)
-	d = Flatten()(c)
-        e = Dense(256, activation='relu')(d)
-	f = Dense(num_actions)(e)
-        g = Activation('softmax')(f)
-        h = Multiply([g,a2])
-        model = Model(inputs=[a1,a2], outputs=[h])  
-        return model
+    @property
+    def preprocessor(self):
+        return self.__preprocessor
+    
+    @preprocessor.setter
+    def policy(self, preprocessor):
+        self.__preprocessor = preprocessor
+    
+    @property
+    def memory(self):
+        return self.__memory
+    
+    @memory.setter
+    def policy(self, memory):
+        self.__memory = memory
+    
+    @property
+    def qnetwork(self):
+        return self.__qnetwork
+    
+    @qnetwork.setter
+    def qnetwork(self, qnetwork):
+        self.__qnetwork = qnetwork
     
 
+    @property
+    def policy(self):
+        return self.__policy
+    
+    @policy.setter
+    def policy(self, policy):
+        self.__policy = policy
+    
+    @property
+    def target_qnetwork(self):
+        return self.__target_qnetwork
+    
+    @target_qnetwork.setter
+    def target_qnetwork(self, target_qnetwork):
+            self.__target_qnetwork = target_qnetwork
+
     def compile(self, optimizer, loss_func):
+        
+        #TODO: check if this is correct
+        #See line 8-16: https://github.com/matthiasplappert/keras-rl/blob/master/rl/util.py
+        
+        #set-up target qnetwork
+        self.target_qnetwork=Sequential.from_config(self.qnetwork.get_config())
+        self.target_qnetwork.set_weights(self.qnetwork.get_weights())
+        
+  
+        
+        #See 152-158: https://github.com/matthiasplappert/keras-rl/blob/master/rl/agents/dqn.py
+        #TODO: Should we compile both networks??
+        
+        self.qnetwork.compile(loss=mean_huber_loss,optimizer=adam)
+        
+        self.compiled=True
+        self.step=0
+        
+
         """Setup all of the TF graph variables/ops.
 
         This is inspired by the compile method on the
@@ -153,11 +204,11 @@ class DQNAgent:
         keras.optimizers.Optimizer class. Specifically the Adam
         optimizer.
         """
+        
+        pass
 
-        adam = Adam(lr=LEARNING_RATE)
-	self.q_network.compile(loss=loss_func, optimizer = adam)
+    def calc_q_values(self, state_batch):
 
-    def calc_q_values(self, state):
         """Given a state (or batch of states) calculate the Q-values.
 
         Basically run your network on these states.
@@ -166,29 +217,36 @@ class DQNAgent:
         ------
         Q-values for the state(s)
         """
-	return self.q_network.predict(state, batch_size = 1)
+        
+        #See: https://github.com/matthiasplappert/keras-rl/blob/master/rl/agents/dqn.py
+        #what does processor.process_state_batch do??
+        
+        q_values = self.qnetwork.predict_on_batch(state_batch)
+        
+        assert q_values.shape == (len(state_batch), self.policy.num_actions)
+
+        return q_values
+        
+        pass
 
     def select_action(self, state, **kwargs):
-        """Select the action based on the current state.
+        
+        #processed_state=process_state_for_network(state)
+        q_values = self.calc_q_values(state)
 
-        You will probably want to vary your behavior here based on
-        which stage of training your in. For example, if you're still
-        collecting random samples you might want to use a
-        UniformRandomPolicy.
+        if self.training
+            action=self.training_policy.select_action(q_values,kwargs)
+                
+        if self.testing
+            action=self.testing_policy.select_action(q_values,kwargs)
 
-        If you're testing, you might want to use a GreedyEpsilonPolicy
-        with a low epsilon.
+        if self.observing
+            action=self.training_policy.select_action(kwargs)
+        
 
-        If you're training, you might want to use the
-        LinearDecayGreedyEpsilonPolicy.
 
-        This would also be a good place to call
-        process_state_for_network in your preprocessor.
+        return action
 
-        Returns
-        --------
-        selected action
-        """
         pass
 
     def update_policy(self):
@@ -209,6 +267,66 @@ class DQNAgent:
         pass
 
     def fit(self, env, num_iterations, max_episode_length=None):
+        
+        #warm-up network, fill the replay memory with some samples
+        
+        self.observing=True
+        #TODO: see line 70, why deep copy???
+        #https://github.com/matthiasplappert/keras-rl/blob/master/rl/core.py
+        observation = deepcopy(env.reset())
+        #process the image
+        if self.preprocessor is not None:
+            processed_observation = self.preprocessor.process_state_for_network(observation)
+            assert processed_observation is not None
+    
+    
+        #start filling replay memory
+        for step in range(1,self.num_burn_in)
+             #TODO: what is kwargs???
+             #next action
+             action=select_action(processed_observation,kwargs)
+    
+             #observe next state
+             new_observation, reward, done, info = env.step(action)
+             new_observation = deepcopy(new_observation)
+             if self.preprocessor is not None:
+                 processed_new_observation = self.preprocessor.process_state_for_network(new_observation)
+                 assert processed_new_observation is not None
+
+             if self.memory is not None:
+                 self.memory.append(self,processed_observation, action, reward, new_processed_observation, is_terminal)
+            
+             processed_observation=new_processed_observation
+
+
+        self.observing=False
+        self.Training=True
+
+        
+        for episode in range(1,num_iterations)
+            
+            observation = deepcopy(env.reset())
+            if self.preprocessor is not None:
+                processed_observation = self.preprocessor.process_state_for_network(observation)
+            assert processed_observation is not None
+            
+            for self.step in range(1,max_episode_length)
+                
+                action=select_action(processed_observation,kwargs)
+                new_observation, reward, done, info = env.step(action)
+                new_observation = deepcopy(new_observation)
+                    
+                if self.preprocessor is not None:
+                    processed_new_observation = self.preprocessor.process_state_for_network(new_observation)
+                    assert processed_new_observation is not None
+                                
+                if self.memory is not None:
+                    self.memory.append(self,processed_observation, action, reward, new_processed_observation, is_terminal)
+
+                self.update_policy()
+                processed_observation=new_processed_observation
+        
+
         """Fit your model to the provided environment.
 
         Its a good idea to print out things like loss, average reward,
@@ -233,7 +351,10 @@ class DQNAgent:
           How long a single episode should last before the agent
           resets. Can help exploration.
         """
+
+        self.training=False
         pass
+    
 
     def evaluate(self, env, num_episodes, max_episode_length=None):
         """Test your agent with a provided environment.
@@ -250,5 +371,3 @@ class DQNAgent:
         """
         pass
 
-    def update_memory(self, state, action, reward, next_state, is_terminal):
-	self.memory.append(state, action, reward, next_state, is_terminal)
