@@ -53,7 +53,7 @@ class UniformRandomPolicy(Policy):
         assert num_actions >= 1
         self.num_actions = num_actions
 
-    def select_action(self, **kwargs):
+    def select_action(self):
         """Return a random action index.
 
         This policy cannot contain others (as they would just be ignored).
@@ -76,7 +76,7 @@ class GreedyPolicy(Policy):
     This is a pure exploitation policy.
     """
 
-    def select_action(self, q_values, **kwargs):  # noqa: D102
+    def select_action(self, q_values):  # noqa: D102
         return np.argmax(q_values)
 
 
@@ -95,7 +95,7 @@ class GreedyEpsilonPolicy(Policy):
     def __init__(self, epsilon):
         self.epsilon = epsilon
 
-    def select_action(self, q_values, **kwargs):
+    def select_action(self, q_values):
         """Run Greedy-Epsilon for the given Q-values.
 
         Parameters
@@ -165,9 +165,9 @@ class LinearDecayGreedyEpsilonPolicy(Policy):
         #b = float(self.end_value)
         #self.epsilon = max(self.start_value, a * float(step) + b)
         
-        b=float(self.start_value)
-        a=float(self.end_value - self.start_value) / float(self.num_steps)
-        self.policy.epsilon = min(self.end_value, a * float(step) + b)
+        #b=float(self.start_value)
+        #a=float(self.end_value - self.start_value) / float(self.num_steps)
+        #self.policy.epsilon = min(self.end_value, a * float(step) + b)
         #TODO: the agents step start from 0
        
         return self.policy.select_action(**kwargs)
