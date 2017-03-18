@@ -56,6 +56,8 @@ class DQNAgent:
     batch_size: int
       How many samples in each minibatch.
     """
+    
+    #TODO:learning rate for optimization? where is it declared????
     def __init__(self,
                  qnetwork,
                  preprocessor,
@@ -249,7 +251,68 @@ class DQNAgent:
 
         pass
 
+
+    #TODO: check if memory is full
+
     def update_policy(self):
+        
+        
+         if self.step % self.freq == 0:
+             
+             
+             #sample replay memory
+             experiences = self.memory.sample(self.batch_size)
+             assert len(experiences) == self.batch_size
+                 
+             state_batch = []
+             reward_batch = []
+             action_batch = []
+             is_terminal_batch = []
+             next_state_batch = []
+             
+             for e in experiences:
+                 state_batch.append(e.state)
+                 next_state_batch.append(e.next_state)
+                 reward_batch.append(e.reward)
+                 action_batch.append(e.action)
+                 is_terminal_batch.append(0. if e.is_terminal else 1.)
+                 
+            state_batch=np.array(state_batch)
+            next_state_batch=np.array(next_state_batch)
+            is_terminal_batch=np.array(is_terminal_batch)
+            reward_batch=np.array(reward_batch)
+            
+            #TODO: see line 673
+            #https://github.com/matthiasplappert/keras-rl/blob/master/rl/agents/dqn.py
+            assert reward_batch.shape == (self.batch_size,)
+            assert is_terminal_batch.shape == reward_batch.shape
+            assert action_batch.shape == (self.batch_size,self.policy.num_actions)
+    
+            #compute q-values on the target network for next state of the experience
+            next_q_values = self.target_qnetwork.predict_on_batch(next_state_batch)
+            assert next_q_values.shape == (self.batch_size, self.policy.num_actions)
+            #keep the q-value of the action which makes it the largest
+            target_q_values = np.max(next_q_values, axis=1).flatten()
+            assert target_q_values.shape == (self.batch_size,)
+            
+            #compute the discounted reward
+            discounted_reward_batch = self.gamma * target_q_values
+            # Set discounted reward to zero for all states that were terminal.
+            discounted_reward_batch *= is_terminal_batch
+                
+            assert discounted_reward_batch.shape == reward_batch.shape
+                
+            total_reward = reward_batch + discounted_reward_batch
+            
+            targets=self.qnetwork.predict_on_batch(next_state_batch)
+            for batch_id in range(1,self.batch_size)
+                targets[batch_id][batch_action[batch_id]]=total_reward[batch_id]
+                    
+            metrics = self.qnetwork.train_on_batch(state_batch,targets)
+                
+            return metrics
+                    
+            
         """Update your policy.
 
         Behavior may differ based on what stage of training your
@@ -264,6 +327,10 @@ class DQNAgent:
         You might want to return the loss and other metrics as an
         output. They can help you monitor how training is going.
         """
+        
+        
+        if self.step % self.target_update_freq == 0:
+            self.update_target_model_hard(self.target_qnetwork, self.qnetwork)
         pass
 
     def fit(self, env, num_iterations, max_episode_length=None):
