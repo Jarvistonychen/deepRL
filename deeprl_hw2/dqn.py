@@ -52,20 +52,26 @@ class DQNAgent:
       How many samples in each minibatch.
     """
     def __init__(self,
-                 preprocessor,
+                 preprocessors,
                  memory,
                  policy,
                  gamma=GAMMA,
                  target_update_freq=TARGET_QNET_RESET_INTERVAL,
                  num_burn_in=SAMPLES_BURN_IN,
-                 #TODO: what's that???
                  train_freq=TRAINING_FREQUENCY,
                  batch_size=BATCH_SIZE):
 
 
-#TODO: initialize copy network
-        self.q_network=create_model()
-        self.qt_network=create_model()
+	self.atari_proc = preprocessors[0]
+	self.preproc = preprocessors[1]
+        self.q_network=create_model(window = WINDOW, \
+				    input_shape = (IMG_ROWS, IMG_COLS), \
+				    num_actions = 9, \
+				    model_name='q_network')
+        self.qt_network=create_model(window = WINDOW, \
+				    input_shape = (IMG_ROWS, IMG_COLS), \
+				    num_actions = 9, \
+				    model_name='q_network')
         self.memory=memory
         self.policy=policy
         self.gamma=gamma
@@ -73,11 +79,12 @@ class DQNAgent:
         self.num_burn_in = num_burn_in
         self.train_freq=train_freq
         self.batch_size=batch_size
+	self.num_update = 0
 
 
 
 
-    def create_model(window, input_shape, num_actions, model_name='q_network'):  # noqa: D103
+    def create_model(self, window, input_shape, num_actions, model_name='q_network'):  # noqa: D103
 	"""Create the Q-network model.
 
 	 Use Keras to construct a keras.models.Model instance (you can also
@@ -106,34 +113,35 @@ class DQNAgent:
 	   The Q-model.
 	 """
 
-        #model = Sequential()
-        #
-        #model.add(Conv2D(16, (8, 8), strides=4, padding='same',use_bias=True,input_shape=(window,input_shape[0],input_shape[1]), data_format='channels_first'))
-        #model.add(Activation('relu'))
-        #        
-        #model.add(Conv2D(32, (4, 4), strides=2, padding='same',use_bias=True,data_format='channels_first'))
-        #model.add(Activation('relu'))
-        #                
-	#model.add(Flatten())
-        #model.add(Dense(256))
-        #model.add(Activation('relu'))
-        #                        
-        #model.add(Dense(num_actions))
-        ##model.add(Multiply())
-        #model.add(Activation('softmax'))
+	if model_name == 'q_network':
+		#model = Sequential()
+		#
+		#model.add(Conv2D(16, (8, 8), strides=4, padding='same',use_bias=True,input_shape=(window,input_shape[0],input_shape[1]), data_format='channels_first'))
+		#model.add(Activation('relu'))
+		#        
+		#model.add(Conv2D(32, (4, 4), strides=2, padding='same',use_bias=True,data_format='channels_first'))
+		#model.add(Activation('relu'))
+		#                
+		#model.add(Flatten())
+		#model.add(Dense(256))
+		#model.add(Activation('relu'))
+		#                        
+		#model.add(Dense(num_actions))
+		##model.add(Multiply())
+		#model.add(Activation('softmax'))
 
-	a = Input(shape=(window,input_shape[0],input_shape[1]))
-	a2 = Input(shape=(output_shape,))
-   	b = Conv2D(16, (8, 8), strides=4, padding='same',use_bias=True,activation='relu', data_format='channels_first')(a1)
-                
-        c = Conv2D(32, (4, 4), strides=2, padding='same',use_bias=True,activation='relu', data_format='channels_first')(b)
-	d = Flatten()(c)
-        e = Dense(256, activation='relu')(d)
-	f = Dense(num_actions)(e)
-        g = Activation('softmax')(f)
-        h = Multiply([g,a2])
-        model = Model(inputs=[a1,a2], outputs=[h])  
-        return model
+		a = Input(shape=(window,input_shape[0],input_shape[1]))
+		a2 = Input(shape=(output_shape,))
+		b = Conv2D(16, (8, 8), strides=4, padding='same',use_bias=True,activation='relu', data_format='channels_first')(a1)
+			
+		c = Conv2D(32, (4, 4), strides=2, padding='same',use_bias=True,activation='relu', data_format='channels_first')(b)
+		d = Flatten()(c)
+		e = Dense(256, activation='relu')(d)
+		f = Dense(num_actions)(e)
+		g = Activation('softmax')(f)
+		h = Multiply([g,a2])
+		model = Model(inputs=[a1,a2], outputs=[h])  
+		return model
     
 
     def compile(self, optimizer, loss_func):
@@ -189,7 +197,7 @@ class DQNAgent:
         --------
         selected action
         """
-        pass
+	return self.policy.select_action(self.calc_q_values(state))
 
     def update_policy(self):
         """Update your policy.
@@ -206,7 +214,8 @@ class DQNAgent:
         You might want to return the loss and other metrics as an
         output. They can help you monitor how training is going.
         """
-        pass
+	get_hard_target_model_updates(self.qt_network, self.q_network)
+	#get_soft_target_model_updates(self.qt_network, self.q_network)
 
     def fit(self, env, num_iterations, max_episode_length=None):
         """Fit your model to the provided environment.
@@ -233,7 +242,49 @@ class DQNAgent:
           How long a single episode should last before the agent
           resets. Can help exploration.
         """
-        pass
+ 	for step in range(num_iterations):
+            if step > 0:
+                state_history = next_history
+                action = self.select_action(state_history)
+            else:
+                action = env.action_space.sample()
+            nextstate, reward, is_terminal, debug_info = env.step(action)
+            nextstate_history = self.preproc.get_history(nextstate)
+            if step > 0:
+                self.memory.append(state_history, \
+				   action, \
+				   self.atari_proc(reward), \
+				   nextstate_history, \
+				   is_terminal)
+	    # train q_network
+	    if self.num_update > self.num_burn_in and self.num_update % self.train_freq = 0:
+		# generate batch samples for CNN
+		mem_samples = self.memory.sample(self.batch_size)
+		mem_samples = self.atari_proc.process_batch(mem_samples)
+		input_state_batch=np.zeros((self.batch_size, 4, 84, 84))
+		input_nextstate_batch=np.zeros((self.batch_size, 4, 84, 84))
+		input_mask_batch=np.zeros((self.batch_size,9))
+		input_dummymask_batch=np.ones((self.batch_size,9))
+		output_target_batch=np.zeros((self.batch_size,9))
+		for ind in range(self.batch_size):
+			input_state_batch[ind,:,:,:] = mem_samples[ind].state
+			input_nextstate_batch[ind,:,:,:] = mem_samples[ind].nextstate
+			input_mask_batch[ind, mem_samples[ind].action] = 1
+
+		best_target_q = np.amax(self.calc_q_value([input_nextstate_batch, input_dummymask_batch]), axis=0)
+
+		for ind in range(self.batch_size):
+			output_target_batch[ind, mem_samples[ind].action] = mem_samples[ind].reward + best_target_q[ind]
+		self.q_network.fit(x=[input_state_batch, input_mask_batch], y=output_target_batch, batch_size=32, epochs=1)
+		
+            env.render()
+            state = nextstate
+            self.num_update += 1
+	    if self.num_update % self.target_update_freq == 0:
+		self.update_policy()
+
+            if is_terminal:
+                break
 
     def evaluate(self, env, num_episodes, max_episode_length=None):
         """Test your agent with a provided environment.
@@ -249,6 +300,3 @@ class DQNAgent:
         visually inspect your policy.
         """
         pass
-
-    def update_memory(self, state, action, reward, next_state, is_terminal):
-	self.memory.append(state, action, reward, next_state, is_terminal)

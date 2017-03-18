@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 """Run Atari Environment with DQN."""
 
-
-
-
 import argparse
 import os
 import random
@@ -80,31 +77,30 @@ def main():  # noqa: D103
 
     #args.output = get_output_folder(args.output, args.env)
 
+    atari_preproc = AtariPreprocessor(new_size=(84,84))
+    history_preproc = HistoryPreprocessor(history_length = 4)
+    preproc = PreprocessorSequence([atari_preproc, history_preproc])
+
+    replay_mem = ReplayMemory(max_size=1e6, window_length=4)
+
+    policy_unirand = UniformRandomPolicy(num_actions = 9)
+    policy_greedy = GreedyPolicy()
+    policy_epsilon = GreedyEpsilonPolicy(epsilon=0.05)
+
+    dqn_agent = DQNAgent(preprocessor = preproc, \
+			 memory = replay_mem, \
+			 policy=policy_epsilon )
+   
     env = gym.make('Enduro-v0')
-    #q_network=create_model(WINDOW,tuple(IMG_ROWS,IMG_COLS),env.action_space.n)
-
-    #sess = tf.Session()
-    #from keras import backend as K
-    #K.set_session(sess)
-
-    initial_state = env.reset()
     env.render()
-    rewards = []
-    num_steps = 0
 
-    while True:
-	    action = env.action_space.sample()
-	    print env.action_space
-	    nextstate, reward, is_terminal, debug_info = env.step(action)
-	    print nextstate.shape
-	    env.render()
-	    rewards.append(reward)
-	    state = nextstate
-	    num_steps += 1
+    for episode in range(1000):
+    	initial_state = env.reset()
+	atari_preproc.reset()
+	history_preproc.reset()
+	replay_mem.clear()
 
-	    if is_terminal:
-		break
-
+	dqn_agent.fit(env, num_iterations=10000)
     # here is where you should start up a session,
     # create your DQN agent, create your model, etc.
     # then you can run your fit method.

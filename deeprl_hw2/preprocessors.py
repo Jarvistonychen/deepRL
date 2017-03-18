@@ -33,7 +33,8 @@ class HistoryPreprocessor(Preprocessor):
 	for hist in range(self.hist_len-1):
 		self.state_seq[:,:,hist] = self.state_seq[:,:,hist+1]
 	self.state_seq[:,:,self.hist_len-1] = state
-	return self.state_seq
+	temp_state_seq = np.copy(self.state_seq)
+	return temp_state_seq
 		
 
     def reset(self):
@@ -130,6 +131,7 @@ class AtariPreprocessor(Preprocessor):
 	for item in samples_temp:
 		item.state = item.state.astype(np.float)
 		item.next_state = item.next_state.astype(np.float)
+	return samples_temp
 
     def process_reward(self, reward):
         """Clip reward between -1 and 1."""
@@ -155,9 +157,9 @@ class PreprocessorSequence(Preprocessor):
     return history.process_state_for_network(state)
     """
     def __init__(self, preprocessors):
-	self.atari = AtariPreprocessor()
-	self.history = HistoryPreprocessor()
+	self.atari = preprocessors[0]
+	self.history = preprocessors[1]
 
     def get_history(self, state):
-	state = self.atari.process_state_for_network(state)
+	state = self.atari.process_state_for_memory(state)
 	return self.history.process_state_for_network(state)
