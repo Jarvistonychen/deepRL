@@ -30,6 +30,61 @@ from deeprl_hw2.objectives import mean_huber_loss
 import gym
 
 
+def create_model(window, input_shape, num_actions, model_name='q_network'):  # noqa: D103
+    
+    """Create the Q-network model.
+        
+        Use Keras to construct a keras.models.Model instance (you can also
+        use the SequentialModel class).
+        
+        We highly recommend that you use tf.name_scope as discussed in
+        class when creating the model and the layers. This will make it
+        far easier to understnad your network architecture if you are
+        logging with tensorboard.
+        
+        Parameters
+        ----------
+        window: int
+        Each input to the network is a sequence of frames. This value
+        defines how many frames are in the sequence.
+        input_shape: tuple(int, int)
+        The expected input image size.
+        num_actions: int
+        Number of possible actions. Defined by the gym environment.
+        model_name: str
+        Useful when debugging. Makes the model show up nicer in tensorboard.
+        
+        Returns
+        -------
+        keras.models.Model
+        The Q-model.
+        """
+    
+        model = Sequential()
+        
+        model.add(Convolution2D(16, 8, 8, subsample=(4, 4), border_mode='same',input_shape=(window,input_shape[0],input_shape[1])))
+        model.add(Activation('relu'))
+        
+        model.add(Convolution2D(32, 4, 4, subsample=(2, 2), border_mode='same'))
+        model.add(Activation('relu'))
+        
+        model.add(Dense(256))
+        model.add(Activation('relu'))
+        
+        model.add(Dense(num_actions))
+        
+        adam = Adam(lr=LEARNING_RATE)
+        
+        #change the loss in order to have two networks
+        model.compile(loss='mse',optimizer=adam)
+        
+        return model
+        
+        pass
+    
+
+
+
 def get_output_folder(parent_dir, env_name):
     """Return save folder.
 
