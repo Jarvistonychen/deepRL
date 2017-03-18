@@ -214,12 +214,18 @@ class ReplayMemory:
         We recommend using a list as a ring buffer. Just track the
         index where the next sample should be inserted in the list.
         """
-	self.max_size = max_size
+	self.max_size = int(max_size)
 	self.window_length = window_length
 	self.pointer = 0
-	self.memory = [Sample() for i in range(max_size)]
+	self.memory = [Sample() for i in range(self.max_size)]
+	self.sample_count = 0
+	self.once_full = 0
 
     def append(self, state, action, reward, next_state, is_terminal):
+	#print 'Append new sample to memory: {0}/{1}'.format(self.pointer, self.max_size)
+	self.sample_count += 1
+	if self.sample_count >= self.max_size:
+		self.once_full = 1
 	#sample = Sample()
 	sample = self.memory[self.pointer]
 	sample.state = np.copy(state)
@@ -227,7 +233,7 @@ class ReplayMemory:
 	sample.reward = reward
 	sample.next_state = np.copy(next_state)
 	sample.is_terminal = is_terminal
-	if self.pointer >= max_size - 1:
+	if self.pointer >= self.max_size - 1:
 		self.pointer = 0
 	else:
 		self.pointer += 1
@@ -236,13 +242,16 @@ class ReplayMemory:
         raise NotImplementedError('This method should be overridden')
 
     def sample(self, batch_size, indexes=None):
-	samples = []
-	rand_max = np.arange(max_size)
-	rand_max = np.random.shuffle(rand_max)
+	samples = [Sample() for i in range(batch_size)]
+	if self.once_full:
+		rand_max = np.arange(self.max_size)
+	else:
+		rand_max = np.arange(self.sample_count)
+	np.random.shuffle(rand_max)
 	for ind in range(batch_size):
-		samples.append(self.memory[rand_max[ind]])
+		samples[ind] = self.memory[rand_max[ind]]
 	return samples
 
     def clear(self):
 	self.pointer = 0
-	self.memory = [Sample() for i in range(max_size)]
+	self.memory = [Sample() for i in range(self.max_size)]

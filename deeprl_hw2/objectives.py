@@ -27,10 +27,14 @@ def huber_loss(y_true, y_pred, max_grad=1.):
     """
     diff = np.absolute(y_true - y_pred)
     loss = np.zeros_like(diff)
-    pos = np.where(diff <= max_grad)
-    loss[pos] =  0.5*np.power(diff[pos],2)
-    pos = np.where(diff > max_grad)
-    loss[pos] =  max_grad * (diff[pos] - 0.5*max_grad)
+    #pos = np.where(diff <= max_grad)
+    #for ind in pos:
+    #	loss[ind] =  0.5*np.power(diff[ind],2)
+    #pos = np.where(diff > max_grad)
+    #for ind in pos:
+    #	loss[ind] =  max_grad * (diff[ind] - 0.5*max_grad)
+    los[diff<=max_grad] = 0.5*np.power(diff[diff<=max_grad],2)
+    los[diff>max_grad] = max_grad * (diff[diff > max_grad] - 0.5*max_grad)
     return loss
 
 

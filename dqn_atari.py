@@ -7,12 +7,12 @@ import random
 
 import numpy as np
 
-import tensorflow as tf
-
-from keras.layers import (Activation, Convolution2D, Dense, Flatten, Input,
-                          Permute)
-from keras.models import Model
-from keras.optimizers import Adam
+#import tensorflow as tf
+#
+#from keras.layers import (Activation, Convolution2D, Dense, Flatten, Input,
+#                          Permute)
+#from keras.models import Model
+#from keras.optimizers import Adam
 
 
 #import skimage as skimage
@@ -77,22 +77,28 @@ def main():  # noqa: D103
 
     #args.output = get_output_folder(args.output, args.env)
 
-    atari_preproc = AtariPreprocessor(new_size=(84,84))
-    history_preproc = HistoryPreprocessor(history_length = 4)
-    preproc = PreprocessorSequence([atari_preproc, history_preproc])
+    atari_preproc = tfrl.preprocessors.AtariPreprocessor(new_size=(84,84))
+    history_preproc = tfrl.preprocessors.HistoryPreprocessor(history_length = 4)
+    preproc = tfrl.preprocessors.PreprocessorSequence([atari_preproc, history_preproc])
 
-    replay_mem = ReplayMemory(max_size=1e6, window_length=4)
+    replay_mem = tfrl.core.ReplayMemory(max_size=1e6, window_length=4)
 
-    policy_unirand = UniformRandomPolicy(num_actions = 9)
-    policy_greedy = GreedyPolicy()
-    policy_epsilon = GreedyEpsilonPolicy(epsilon=0.05)
+    policy_unirand = tfrl.policy.UniformRandomPolicy(num_actions = 9)
+    policy_greedy = tfrl.policy.GreedyPolicy()
+    policy_epsilon = tfrl.policy.GreedyEpsilonPolicy(epsilon=0.05)
 
-    dqn_agent = DQNAgent(preprocessor = preproc, \
-			 memory = replay_mem, \
-			 policy=policy_epsilon )
+    dqn_agent = DQNAgent(model_name 	    = 'LINEAR', \
+			 preprocessors      = [atari_preproc, preproc], \
+			 memory 	    = replay_mem, \
+			 policy		    = policy_epsilon, \
+			 gamma		    = 0.9, \
+			 target_update_freq = 1000, \
+			 num_burn_in 	    = 1000, \
+			 train_freq 	    = 4, \
+			 batch_size 	    = 32 )
+    dqn_agent.compile(optimizer='Adam', loss_func='mse')
    
     env = gym.make('Enduro-v0')
-    env.render()
 
     for episode in range(1000):
     	initial_state = env.reset()
@@ -101,13 +107,7 @@ def main():  # noqa: D103
 	replay_mem.clear()
 
 	dqn_agent.fit(env, num_iterations=10000)
-    # here is where you should start up a session,
-    # create your DQN agent, create your model, etc.
-    # then you can run your fit method.
     
-
-
-
 
 
 if __name__ == '__main__':

@@ -1,19 +1,29 @@
 """Main DQN agent."""
 
+from keras import optimizers
+from keras.layers import (Activation, Conv2D, Dense, Flatten, Input,
+                          Multiply)
+from keras.models import Model
+import numpy as np
+import pickle
+import matplotlib.pyplot as plt
 
+import deeprl_hw2 as tfrl
+
+GAMMA = 0.9
+ALPHA = 1e-4
+EPSILON = 0.05
+REPLAY_BUFFER_SIZE = 1000000
+BATCH_SIZE = 32
+IMG_ROWS , IMG_COLS = 84, 84
+WINDOW = 4
+TARGET_QNET_RESET_INTERVAL = 10000
+SAMPLES_BURN_IN = 10000
+TRAINING_FREQUENCY=4
+LEARNING_RATE = 0.01
 
 class DQNAgent:
     
-    GAMMA = 0.99
-    ALPHA = 1e-4
-    EPSILON = 0.05
-    REPLAY_BUFFER_SIZE = 1000000
-    BATCH_SIZE = 32
-    IMG_ROWS , IMG_COLS = 84, 84
-    WINDOW = 4
-    TARGET_QNET_RESET_INTERVAL = 10000
-    SAMPLES_BURN_IN = 10000
-    TRAINING_FREQUENCY=4
     """Class implementing DQN.
 
     This is a basic outline of the functions/parameters you will need
@@ -52,6 +62,7 @@ class DQNAgent:
       How many samples in each minibatch.
     """
     def __init__(self,
+		 model_name,
                  preprocessors,
                  memory,
                  policy,
@@ -62,29 +73,36 @@ class DQNAgent:
                  batch_size=BATCH_SIZE):
 
 
-	self.atari_proc = preprocessors[0]
-	self.preproc = preprocessors[1]
-        self.q_network=create_model(window = WINDOW, \
-				    input_shape = (IMG_ROWS, IMG_COLS), \
-				    num_actions = 9, \
-				    model_name='q_network')
-        self.qt_network=create_model(window = WINDOW, \
-				    input_shape = (IMG_ROWS, IMG_COLS), \
-				    num_actions = 9, \
-				    model_name='q_network')
-        self.memory=memory
-        self.policy=policy
-        self.gamma=gamma
-        self.target_update_freq=target_update_freq
-        self.num_burn_in = num_burn_in
-        self.train_freq=train_freq
-        self.batch_size=batch_size
-	self.num_update = 0
+	self.model_name = model_name
+	self.atari_proc  	= preprocessors[0]
+	self.preproc     	= preprocessors[1]
+        self.q_network   	= self.create_model(window = WINDOW, \
+						    input_shape = (IMG_ROWS, IMG_COLS), \
+						    num_actions = 9, \
+						    model_name	= self.model_name)
+        self.qt_network  	= self.create_model(window = WINDOW, \
+						    input_shape = (IMG_ROWS, IMG_COLS), \
+						    num_actions = 9, \
+						    model_name	= self.model_name)
+	print 'model summary'
+	print self.q_network.summary()
+	print self.q_network.get_config()
 
+        self.memory	 	= memory
+        self.policy	 	= policy
+        self.gamma	 	= gamma
+        self.target_update_freq = target_update_freq
+        self.num_burn_in 	= num_burn_in
+        self.train_freq		= train_freq
+        self.batch_size		= batch_size
+	self.num_update 	= 0
 
+	self.train_loss		= []
+	self.mean_q		= []
+	self.rand_states 	= np.random.randint(255, size=(10000, 4, 84, 84))
+	self.rand_states_mask 	= np.ones((10000, 9))
 
-
-    def create_model(self, window, input_shape, num_actions, model_name='q_network'):  # noqa: D103
+    def create_model(self, window, input_shape, num_actions, model_name='DQN2layer'):  # noqa: D103
 	"""Create the Q-network model.
 
 	 Use Keras to construct a keras.models.Model instance (you can also
@@ -113,7 +131,7 @@ class DQNAgent:
 	   The Q-model.
 	 """
 
-	if model_name == 'q_network':
+	if model_name == 'DQN2layer':
 		#model = Sequential()
 		#
 		#model.add(Conv2D(16, (8, 8), strides=4, padding='same',use_bias=True,input_shape=(window,input_shape[0],input_shape[1]), data_format='channels_first'))
@@ -130,18 +148,27 @@ class DQNAgent:
 		##model.add(Multiply())
 		#model.add(Activation('softmax'))
 
-		a = Input(shape=(window,input_shape[0],input_shape[1]))
-		a2 = Input(shape=(output_shape,))
+		a1 = Input(shape=(window,input_shape[0],input_shape[1]))
+		a2 = Input(shape=(num_actions,))
 		b = Conv2D(16, (8, 8), strides=4, padding='same',use_bias=True,activation='relu', data_format='channels_first')(a1)
 			
 		c = Conv2D(32, (4, 4), strides=2, padding='same',use_bias=True,activation='relu', data_format='channels_first')(b)
 		d = Flatten()(c)
 		e = Dense(256, activation='relu')(d)
 		f = Dense(num_actions)(e)
-		g = Activation('softmax')(f)
-		h = Multiply([g,a2])
+		h = Multiply()([f,a2])
 		model = Model(inputs=[a1,a2], outputs=[h])  
 		return model
+
+	elif model_name == 'LINEAR':
+		a1 = Input(shape=(window,input_shape[0],input_shape[1]))
+		a2 = Input(shape=(num_actions,))
+		b = Flatten()(a1)
+		c = Dense(num_actions)(b)
+		e = Multiply()([c,a2])
+		model = Model(inputs=[a1,a2], outputs=[e])  
+		return model
+		
     
 
     def compile(self, optimizer, loss_func):
@@ -162,8 +189,9 @@ class DQNAgent:
         optimizer.
         """
 
-        adam = Adam(lr=LEARNING_RATE)
-	self.q_network.compile(loss=loss_func, optimizer = adam)
+	if optimizer == 'Adam':
+        	opti = optimizers.Adam(lr=LEARNING_RATE)
+	self.q_network.compile(loss=loss_func, optimizer = opti)
 
     def calc_q_values(self, state):
         """Given a state (or batch of states) calculate the Q-values.
@@ -214,7 +242,8 @@ class DQNAgent:
         You might want to return the loss and other metrics as an
         output. They can help you monitor how training is going.
         """
-	get_hard_target_model_updates(self.qt_network, self.q_network)
+	print "======================= Sync target and source network ============================="
+	tfrl.utils.get_hard_target_model_updates(self.qt_network, self.q_network)
 	#get_soft_target_model_updates(self.qt_network, self.q_network)
 
     def fit(self, env, num_iterations, max_episode_length=None):
@@ -242,10 +271,11 @@ class DQNAgent:
           How long a single episode should last before the agent
           resets. Can help exploration.
         """
+	input_dummymask = np.ones((1,9))
  	for step in range(num_iterations):
             if step > 0:
-                state_history = next_history
-                action = self.select_action(state_history)
+                state_history = nextstate_history
+                action = self.select_action([state_history, input_dummymask])
             else:
                 action = env.action_space.sample()
             nextstate, reward, is_terminal, debug_info = env.step(action)
@@ -253,11 +283,14 @@ class DQNAgent:
             if step > 0:
                 self.memory.append(state_history, \
 				   action, \
-				   self.atari_proc(reward), \
+				   self.atari_proc.process_reward(reward), \
 				   nextstate_history, \
 				   is_terminal)
 	    # train q_network
-	    if self.num_update > self.num_burn_in and self.num_update % self.train_freq = 0:
+	    if self.num_update >= self.num_burn_in and self.num_update % self.train_freq == 0:
+		if self.num_update == self.num_burn_in:
+			print '================ Memory burn in ({0}) finished ==========='.format(self.num_burn_in)
+		#print 'Memory burn in phase completed. {0} samples'.format(self.num_burn_in)
 		# generate batch samples for CNN
 		mem_samples = self.memory.sample(self.batch_size)
 		mem_samples = self.atari_proc.process_batch(mem_samples)
@@ -268,23 +301,47 @@ class DQNAgent:
 		output_target_batch=np.zeros((self.batch_size,9))
 		for ind in range(self.batch_size):
 			input_state_batch[ind,:,:,:] = mem_samples[ind].state
-			input_nextstate_batch[ind,:,:,:] = mem_samples[ind].nextstate
+			input_nextstate_batch[ind,:,:,:] = mem_samples[ind].next_state
 			input_mask_batch[ind, mem_samples[ind].action] = 1
 
-		best_target_q = np.amax(self.calc_q_value([input_nextstate_batch, input_dummymask_batch]), axis=0)
+		target_q = self.calc_q_values([input_nextstate_batch, input_dummymask_batch])
+		#print target_q
+		best_target_q = np.amax(target_q, axis=1)
+		#print 'best Q values of batch'
+		#print best_target_q
 
 		for ind in range(self.batch_size):
-			output_target_batch[ind, mem_samples[ind].action] = mem_samples[ind].reward + best_target_q[ind]
+			output_target_batch[ind, mem_samples[ind].action] = mem_samples[ind].reward + self.gamma*best_target_q[ind]
+
 		self.q_network.fit(x=[input_state_batch, input_mask_batch], y=output_target_batch, batch_size=32, epochs=1)
 		
-            env.render()
+	    if self.num_update > self.num_burn_in and self.num_update % (self.target_update_freq/10.0) == 0:
+		self.mean_q.append(self.eval_avg_q())
+		self.train_loss.append(self.q_network.evaluate(x=[input_state_batch, input_mask_batch], y=output_target_batch))
+
+            #env.render()
             state = nextstate
             self.num_update += 1
+
 	    if self.num_update % self.target_update_freq == 0:
+		plt.plot(self.mean_q)
+		plt.savefig('mean_q_{0}.jpg'.format(self.model_name))
+		plt.plot(self.train_loss)
+		plt.savefig('train_loss_{0}.jpg'.format(self.model_name))
+		with open('mean_q_{0}.data'.format(self.model_name),'w') as f:
+			pickle.dump(self.mean_q,f)
+		with open('train_loss_{0}.data'.format(self.model_name),'w') as f:
+			pickle.dump(self.train_loss,f)
+		self.q_network.save_weights('source_{0}.weight'.format(self.model_name))
+		self.qt_network.save_weights('target_{0}.weight'.format(self.model_name))
+
 		self.update_policy()
 
             if is_terminal:
                 break
+
+    def eval_avg_q(self):
+	return np.mean(np.amax(self.calc_q_values([self.rand_states, self.rand_states_mask]), axis=1))
 
     def evaluate(self, env, num_episodes, max_episode_length=None):
         """Test your agent with a provided environment.

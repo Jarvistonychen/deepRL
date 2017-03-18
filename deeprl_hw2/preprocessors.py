@@ -6,6 +6,7 @@ from PIL import Image
 from deeprl_hw2 import utils
 from deeprl_hw2.core import Preprocessor
 
+import copy
 
 class HistoryPreprocessor(Preprocessor):
     """Keeps the last k states.
@@ -25,14 +26,15 @@ class HistoryPreprocessor(Preprocessor):
 
     def __init__(self, history_length=4):
         self.hist_len = history_length
-	self.state_seq = np.zeros((84,84,history_length))
+	# keras/TF requires input to be 4-dimenional: batch, channel, row ,col
+	self.state_seq = np.zeros((1,self.hist_len, 84,84), dtype=np.uint8)
 
     # state here is already processed in AtariPreprocessor
     def process_state_for_network(self, state):
         """You only want history when you're deciding the current action to take."""
 	for hist in range(self.hist_len-1):
-		self.state_seq[:,:,hist] = self.state_seq[:,:,hist+1]
-	self.state_seq[:,:,self.hist_len-1] = state
+		self.state_seq[0,hist,:,:] = self.state_seq[0,hist+1,:,:]
+	self.state_seq[0,self.hist_len-1, :,:] = state
 	temp_state_seq = np.copy(self.state_seq)
 	return temp_state_seq
 		
@@ -42,7 +44,7 @@ class HistoryPreprocessor(Preprocessor):
 
         Useful when you start a new episode.
         """
-	self.state_seq = np.zeros((84,84,history_length))
+	self.state_seq = np.zeros((1,self.hist_len,84,84), dtype=np.uint8)
 	
 
     def get_config(self):
@@ -87,7 +89,7 @@ class AtariPreprocessor(Preprocessor):
 
     def __init__(self, new_size=(84,84)):
 	self.new_size = new_size
-	self.old_state = np.zeros((84,84,1))
+	self.old_state = np.zeros((1,84,84))
 
     def process_state_for_memory(self, state):
         """Scale, convert to greyscale and store as uint8.
@@ -101,9 +103,18 @@ class AtariPreprocessor(Preprocessor):
         """
 	state_temp = np.copy(state)
 	state_temp = np.amax(state_temp, axis=2)
+	#print 'Atari image '
+	#print state_temp
+	#print state_temp.shape
 	img = Image.fromarray(state_temp)
+	#img.save('ori.bmp')
 	img = img.resize(self.new_size, Image.ANTIALIAS)
-	state_temp = np.array(img, dtype='u8')
+	state_temp = np.array(img, dtype=np.uint8)
+	#img = Image.fromarray(state_temp)
+	#img.save('resize.bmp')
+	#print 'Atari image for memory'
+	#print state_temp
+	#print state_temp.shape
 	return state_temp
 
     def process_state_for_network(self, state):
