@@ -299,7 +299,8 @@ class DQNAgent:
             discounted_reward_batch = self.gamma * target_q_values
             # Set discounted reward to zero for all states that were terminal.
             discounted_reward_batch *= is_terminal_batch
-                
+            
+            #TODO: discuss it with Zhuo this point
             assert discounted_reward_batch.shape == reward_batch.shape
                 
             total_reward = reward_batch + discounted_reward_batch
@@ -379,7 +380,7 @@ class DQNAgent:
             
             for self.step in range(1,max_episode_length)
                 
-                action=select_action(processed_observation,kwargs)
+                action=self.select_action(processed_observation,kwargs)
                 new_observation, reward, done, info = env.step(action)
                 new_observation = deepcopy(new_observation)
                     
@@ -436,5 +437,54 @@ class DQNAgent:
         You can also call the render function here if you want to
         visually inspect your policy.
         """
+        
+        self.testing=True
+        callback =History()
+        
+        for episode in range(num_episodes)
+
+                callback.on_episode_begin(episode)
+                
+                episode_reward = 0
+                episode_step = 0
+                    
+                observation = deepcopy(env.reset())
+                if self.preprocessor is not None:
+                    processed_observation = self.preprocessor.process_state_for_network(observation)
+                assert processed_observation is not None
+    
+                for step in range(1,max_episode_length)
+                    callbacks.on_step_begin(episode_step)
+                    done= False
+                    
+                    while not done:
+                        action = self.select_action(processed_observation)
+    
+                        new_observation, reward, done = env.step(action)
+                        new_observation = deepcopy(new_observation)
+                            
+                        if self.preprocessor is not None:
+                            processed_new_observation = self.preprocessor.process_state_for_networ(new_observation)
+                        assert processed_new_observation is not None
+                        
+                        episode_reward+=reward
+                            
+                        step_logs = {
+                            'action': action,
+                            'observation': observation,
+                            'reward': reward,
+                            'episode': episode,
+                        }
+                        callbacks.on_episode_end(episode_step,step_logs)
+                        episode_step += 1
+                            
+                            
+                  episode_logs = {
+                        'episode_reward': episode_reward,
+                        'episode_steps': episode_step,
+                    }
+                  callback.on_episode_end(episode, episode_logs)
+                            
+        self.testing=False
         pass
 
