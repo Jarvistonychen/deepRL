@@ -66,18 +66,22 @@ def create_model(window, input_shape, num_actions, model_name='q_network'):  # n
         
         #TODO: do we need this???See
         #http://stackoverflow.com/questions/34716454/where-do-i-call-the-batchnormalization-function-in-keras
-        #model.add(BatchNormalization())
+        model.add(BatchNormalization())
+
         model.add(Convolution2D(16, 8, 8, subsample=(4, 4), border_mode='same',input_shape=(window,input_shape[0],input_shape[1])))
         model.add(BatchNormalization())
         model.add(Activation('relu'))
+        model.add(Dropout(0.5))
         
         model.add(Convolution2D(32, 4, 4, subsample=(2, 2), border_mode='same'))
         model.add(BatchNormalization())
         model.add(Activation('relu'))
+        model.add(Dropout(0.5))
         
         model.add(Dense(256))
         model.add(BatchNormalization())
         model.add(Activation('relu'))
+        model.add(Dropout(0.5))
         
         model.add(Dense(num_actions))
         
