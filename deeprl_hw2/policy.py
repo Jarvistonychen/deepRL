@@ -63,7 +63,8 @@ class UniformRandomPolicy(Policy):
         int:
           Action index in range [0, num_actions)
         """
-        return np.random.randint(0, self.num_actions)
+        #TODO:changed
+        return np.random.randint(0, self.num_actions-1)
 
     def get_config(self):  # noqa: D102
         return {'num_actions': self.num_actions}
@@ -92,7 +93,7 @@ class GreedyEpsilonPolicy(Policy):
      over time.
     """
     def __init__(self, epsilon):
-	self.epsilon = epsilon
+        self.epsilon = epsilon
 
     def select_action(self, q_values, **kwargs):
         """Run Greedy-Epsilon for the given Q-values.
@@ -108,12 +109,14 @@ class GreedyEpsilonPolicy(Policy):
         int:
           The action index chosen.
         """
-	rand_num = np.random.rand()
-	num_act = q_values.shape[0]
-	if rand_num < self.epsilon*num_act:
-		return np.random.randint(num_act)
-	else:
-		return np.argmax(q_values)
+        rand_num = np.random.rand()
+        num_actions = q_values.shape[0]
+        if np.random.uniform() < self.epsilon
+           action = np.random.random_integers(0, num_actions-1)
+        else:
+            action = np.argmax(q_values)
+        
+        return action
 
 
 class LinearDecayGreedyEpsilonPolicy(Policy):
@@ -133,11 +136,23 @@ class LinearDecayGreedyEpsilonPolicy(Policy):
 
     """
 
-    def __init__(self, policy, attr_name, start_value, end_value,
+    def __init__(self, policy=None, attr_name=None, start_value, end_value,
                  num_steps):  # noqa: D102
+        
+        if policy is None:
+            self.policy=GreedyEpsilonPolicy
+            attr_name=
+        else
+            self.policy = policy
+
+        self.attr_name = attr_name
+        self.end_value = end_value
+        self.start_value = start_value
+        self.num_steps = num_steps
+        
         pass
 
-    def select_action(self, **kwargs):
+    def select_action(self,step,**kwargs):
         """Decay parameter and select action.
 
         Parameters
@@ -152,6 +167,13 @@ class LinearDecayGreedyEpsilonPolicy(Policy):
         Any:
           Selected action.
         """
+        
+        a = -float(self.end_value - self.start_value) / float(self.num_steps)
+        b = float(self.end_value)
+        value = max(self.start_value, a * float(step) + b)
+        
+        setattr(self.policy, self.attr, self.get_current_value())
+   
         pass
 
     def reset(self):
