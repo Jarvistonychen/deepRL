@@ -124,10 +124,11 @@ class DQNAgent:
         #TODO: change policy so that alwayes each class has attribute num_actions
         if policy is None:
             self.policy = EpsGreedyQPolicy(EPSILON)
+        
         observing_policy = UniformRandomPolicy(self.policy.num_actions)
         
         #TODO: put the arguments correctly here
-        training_policy = LinearDecayGreedyEpsilonPolicy()
+        training_policy = LinearDecayGreedyEpsilonPolicy(0.5,0.05,10000)
 
     @property
     def preprocessor(self):
