@@ -75,7 +75,8 @@ class DQNAgent:
 
 	self.model_name = model_name
 	self.atari_proc  	= preprocessors[0]
-	self.preproc     	= preprocessors[1]
+	self.hist_proc  	= preprocessors[1]
+	self.preproc     	= preprocessors[2]
         self.q_network   	= self.create_model(window = WINDOW, \
 						    input_shape = (IMG_ROWS, IMG_COLS), \
 						    num_actions = 9, \
@@ -242,6 +243,37 @@ class DQNAgent:
         You might want to return the loss and other metrics as an
         output. They can help you monitor how training is going.
         """
+	if self.num_update % self.train_freq == 0:
+		#print 'Memory burn in phase completed. {0} samples'.format(self.num_burn_in)
+		# generate batch samples for CNN
+		mem_samples = self.memory.sample(self.batch_size)
+		mem_samples = self.atari_proc.process_batch(mem_samples)
+		input_state_batch=np.zeros((self.batch_size, 4, 84, 84))
+		input_nextstate_batch=np.zeros((self.batch_size, 4, 84, 84))
+		input_mask_batch=np.zeros((self.batch_size,9))
+		input_dummymask_batch=np.ones((self.batch_size,9))
+		output_target_batch=np.zeros((self.batch_size,9))
+		for ind in range(self.batch_size):
+			input_state_batch[ind,:,:,:] = mem_samples[ind].state
+			input_nextstate_batch[ind,:,:,:] = mem_samples[ind].next_state
+			input_mask_batch[ind, mem_samples[ind].action] = 1
+
+		target_q = self.calc_q_values([input_nextstate_batch, input_dummymask_batch])
+		best_target_q = np.amax(target_q, axis=1)
+		#print 'best Q values of batch'
+		#print best_target_q
+
+		for ind in range(self.batch_size):
+			output_target_batch[ind, mem_samples[ind].action] = mem_samples[ind].reward + self.gamma*best_target_q[ind]
+
+		self.q_network.fit(x=[input_state_batch, input_mask_batch], y=output_target_batch, batch_size=32, epochs=1)
+	
+	if  self.num_update % (self.train_freq * 25) == 0:
+		self.mean_q.append(self.eval_avg_q())
+		self.train_loss.append(self.q_network.evaluate(x=[input_state_batch, input_mask_batch], y=output_target_batch))
+
+	self.save_data(freq=self.target_update_freq)
+
 	if self.num_update % self.target_update_freq == 0:
 		print "======================= Sync target and source network ============================="
 		tfrl.utils.get_hard_target_model_updates(self.qt_network, self.q_network)
@@ -273,64 +305,37 @@ class DQNAgent:
           resets. Can help exploration.
         """
 	input_dummymask = np.ones((1,9))
- 	for step in range(num_iterations):
-            if step > 0:
-                state_history = nextstate_history
-                action = self.select_action([state_history, input_dummymask])
-            else:
-                action = env.action_space.sample()
-            nextstate, reward, is_terminal, debug_info = env.step(action)
-            nextstate_history = self.preproc.get_history(nextstate)
-            if step > 0:
-                self.memory.append(state_history, \
-				   action, \
-				   self.atari_proc.process_reward(reward), \
-				   nextstate_history, \
-				   is_terminal)
-	    # train q_network
-	    if self.num_update >= self.num_burn_in:
-		if self.num_update == self.num_burn_in:
-			print '================ Memory burn in ({0}) finished ==========='.format(self.num_burn_in)
+	while self.num_update < num_iterations:
+		env.reset()
+		self.atari_proc.reset()
+		self.hist_proc.reset()
+		self.memory.clear()
+		for step in range(max_episode_length):
+		    if step > 0:
+			state_history = nextstate_history
+			action = self.select_action([state_history, input_dummymask])
+		    else:
+			action = env.action_space.sample()
+		    nextstate, reward, is_terminal, debug_info = env.step(action)
+		    nextstate_history = self.preproc.get_history(nextstate)
+		    if step > 0:
+			self.memory.append(state_history, \
+					   action, \
+					   self.atari_proc.process_reward(reward), \
+					   nextstate_history, \
+					   is_terminal)
+		    # train q_network
+		    if self.num_update >= self.num_burn_in:
+			if self.num_update == self.num_burn_in:
+			    print '=========== Memory burn in ({0}) finished =========='.format(self.num_burn_in)
+			self.update_policy()
+		    #env.render()
+		    state = nextstate
+		    self.num_update += 1
 
-		if self.num_update % self.train_freq == 0:
-			#print 'Memory burn in phase completed. {0} samples'.format(self.num_burn_in)
-			# generate batch samples for CNN
-			mem_samples = self.memory.sample(self.batch_size)
-			mem_samples = self.atari_proc.process_batch(mem_samples)
-			input_state_batch=np.zeros((self.batch_size, 4, 84, 84))
-			input_nextstate_batch=np.zeros((self.batch_size, 4, 84, 84))
-			input_mask_batch=np.zeros((self.batch_size,9))
-			input_dummymask_batch=np.ones((self.batch_size,9))
-			output_target_batch=np.zeros((self.batch_size,9))
-			for ind in range(self.batch_size):
-				input_state_batch[ind,:,:,:] = mem_samples[ind].state
-				input_nextstate_batch[ind,:,:,:] = mem_samples[ind].next_state
-				input_mask_batch[ind, mem_samples[ind].action] = 1
+		    if is_terminal:
+			break
 
-			target_q = self.calc_q_values([input_nextstate_batch, input_dummymask_batch])
-			#print target_q
-			best_target_q = np.amax(target_q, axis=1)
-			#print 'best Q values of batch'
-			#print best_target_q
-
-			for ind in range(self.batch_size):
-				output_target_batch[ind, mem_samples[ind].action] = mem_samples[ind].reward + self.gamma*best_target_q[ind]
-
-			self.q_network.fit(x=[input_state_batch, input_mask_batch], y=output_target_batch, batch_size=32, epochs=1)
-		
-	    	if  self.num_update % (self.train_freq * 25) == 0:
-			self.mean_q.append(self.eval_avg_q())
-			self.train_loss.append(self.q_network.evaluate(x=[input_state_batch, input_mask_batch], y=output_target_batch))
-
-		self.save_data(freq=self.target_update_freq)
-
-            #env.render()
-            state = nextstate
-            self.num_update += 1
-	    self.update_policy()
-
-            if is_terminal:
-                break
     def save_data(self,freq):
 	if self.num_update % freq == 0:
 		plt.plot(self.mean_q)

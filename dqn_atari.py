@@ -89,7 +89,7 @@ def main():  # noqa: D103
     policy_epsilon = tfrl.policy.GreedyEpsilonPolicy(epsilon=0.05)
 
     dqn_agent = DQNAgent(model_name 	    = 'LINEAR', \
-			 preprocessors      = [atari_preproc, preproc], \
+			 preprocessors      = [atari_preproc, history_preproc, preproc], \
 			 memory 	    = replay_mem, \
 			 policy		    = policy_epsilon, \
 			 gamma		    = 0.9, \
@@ -101,13 +101,7 @@ def main():  # noqa: D103
    
     env = gym.make('Enduro-v0')
 
-    for episode in range(1000):
-    	initial_state = env.reset()
-	atari_preproc.reset()
-	history_preproc.reset()
-	replay_mem.clear()
-
-	dqn_agent.fit(env, num_iterations=10000)
+    dqn_agent.fit(env, num_iterations=100000, max_episode_length=10000)
     
 
 
