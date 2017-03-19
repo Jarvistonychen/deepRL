@@ -138,26 +138,9 @@ class DQNAgent:
 	 """
 
 	if model_name == 'DQN2layer':
-		#model = Sequential()
-		#
-		#model.add(Conv2D(16, (8, 8), strides=4, padding='same',use_bias=True,input_shape=(window,input_shape[0],input_shape[1]), data_format='channels_first'))
-		#model.add(Activation('relu'))
-		#        
-		#model.add(Conv2D(32, (4, 4), strides=2, padding='same',use_bias=True,data_format='channels_first'))
-		#model.add(Activation('relu'))
-		#                
-		#model.add(Flatten())
-		#model.add(Dense(256))
-		#model.add(Activation('relu'))
-		#                        
-		#model.add(Dense(num_actions))
-		##model.add(Multiply())
-		#model.add(Activation('softmax'))
-
 		a1 = Input(shape=(window,input_shape[0],input_shape[1]))
 		a2 = Input(shape=(num_actions,))
 		b = Conv2D(16, (8, 8), strides=4, padding='same',use_bias=True,activation='relu', data_format='channels_first')(a1)
-			
 		c = Conv2D(32, (4, 4), strides=2, padding='same',use_bias=True,activation='relu', data_format='channels_first')(b)
 		d = Flatten()(c)
 		e = Dense(256, activation='relu')(d)
@@ -231,23 +214,24 @@ class DQNAgent:
         --------
         selected action
         """
-
+    
 	if policy == 'observing':
-    	#if 'state' in kwargs:
-		#	return self.observing_policy.select_action(self.calc_q_values(kwargs['state']))
-        #else: 
- 		return self.observing_policy.select_action()
-	elif policy == 'testing':
-	#	if 'state' in kwargs:
-		return self.testing_policy.select_action(self.calc_q_values(kwargs['state']))
-    #	else:
-	#		return self.testing_policy.select_action()
+    		if 'state' in kwargs:
+        		return self.observing_policy.select_action(self.calc_q_values(kwargs['state']))
+    		else:
+				return self.observing_policy.select_action()
 	elif policy == 'training':
-	#	if 'state' in kwargs:
-		return self.training_policy.select_action(self.calc_q_values(kwargs['state']))
-    #    else: 
-	#return self.training_policy.select_action()
+            if 'state' in kwargs:
+                return self.training_policy.select_action(self.calc_q_values(kwargs['state']))
+            else:
+                return self.training_policy.select_action()
+	elif policy == 'testing':
+            if 'state' in kwargs:
+                return self.testing_policy.select_action(self.calc_q_values(kwargs['state']))
+            else:
+                return self.testing_policy.select_action()
 
+    
     def update_policy(self):
         """Update your policy.
 
