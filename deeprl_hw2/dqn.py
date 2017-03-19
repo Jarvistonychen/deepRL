@@ -242,9 +242,10 @@ class DQNAgent:
         You might want to return the loss and other metrics as an
         output. They can help you monitor how training is going.
         """
-	print "======================= Sync target and source network ============================="
-	tfrl.utils.get_hard_target_model_updates(self.qt_network, self.q_network)
-	#get_soft_target_model_updates(self.qt_network, self.q_network)
+	if self.num_update % self.target_update_freq == 0:
+		print "======================= Sync target and source network ============================="
+		tfrl.utils.get_hard_target_model_updates(self.qt_network, self.q_network)
+		#get_soft_target_model_updates(self.qt_network, self.q_network)
 
     def fit(self, env, num_iterations, max_episode_length=None):
         """Fit your model to the provided environment.
@@ -287,58 +288,63 @@ class DQNAgent:
 				   nextstate_history, \
 				   is_terminal)
 	    # train q_network
-	    if self.num_update >= self.num_burn_in and self.num_update % self.train_freq == 0:
+	    if self.num_update >= self.num_burn_in:
 		if self.num_update == self.num_burn_in:
 			print '================ Memory burn in ({0}) finished ==========='.format(self.num_burn_in)
-		#print 'Memory burn in phase completed. {0} samples'.format(self.num_burn_in)
-		# generate batch samples for CNN
-		mem_samples = self.memory.sample(self.batch_size)
-		mem_samples = self.atari_proc.process_batch(mem_samples)
-		input_state_batch=np.zeros((self.batch_size, 4, 84, 84))
-		input_nextstate_batch=np.zeros((self.batch_size, 4, 84, 84))
-		input_mask_batch=np.zeros((self.batch_size,9))
-		input_dummymask_batch=np.ones((self.batch_size,9))
-		output_target_batch=np.zeros((self.batch_size,9))
-		for ind in range(self.batch_size):
-			input_state_batch[ind,:,:,:] = mem_samples[ind].state
-			input_nextstate_batch[ind,:,:,:] = mem_samples[ind].next_state
-			input_mask_batch[ind, mem_samples[ind].action] = 1
 
-		target_q = self.calc_q_values([input_nextstate_batch, input_dummymask_batch])
-		#print target_q
-		best_target_q = np.amax(target_q, axis=1)
-		#print 'best Q values of batch'
-		#print best_target_q
+		if self.num_update % self.train_freq == 0:
+			#print 'Memory burn in phase completed. {0} samples'.format(self.num_burn_in)
+			# generate batch samples for CNN
+			mem_samples = self.memory.sample(self.batch_size)
+			mem_samples = self.atari_proc.process_batch(mem_samples)
+			input_state_batch=np.zeros((self.batch_size, 4, 84, 84))
+			input_nextstate_batch=np.zeros((self.batch_size, 4, 84, 84))
+			input_mask_batch=np.zeros((self.batch_size,9))
+			input_dummymask_batch=np.ones((self.batch_size,9))
+			output_target_batch=np.zeros((self.batch_size,9))
+			for ind in range(self.batch_size):
+				input_state_batch[ind,:,:,:] = mem_samples[ind].state
+				input_nextstate_batch[ind,:,:,:] = mem_samples[ind].next_state
+				input_mask_batch[ind, mem_samples[ind].action] = 1
 
-		for ind in range(self.batch_size):
-			output_target_batch[ind, mem_samples[ind].action] = mem_samples[ind].reward + self.gamma*best_target_q[ind]
+			target_q = self.calc_q_values([input_nextstate_batch, input_dummymask_batch])
+			#print target_q
+			best_target_q = np.amax(target_q, axis=1)
+			#print 'best Q values of batch'
+			#print best_target_q
 
-		self.q_network.fit(x=[input_state_batch, input_mask_batch], y=output_target_batch, batch_size=32, epochs=1)
+			for ind in range(self.batch_size):
+				output_target_batch[ind, mem_samples[ind].action] = mem_samples[ind].reward + self.gamma*best_target_q[ind]
+
+			self.q_network.fit(x=[input_state_batch, input_mask_batch], y=output_target_batch, batch_size=32, epochs=1)
 		
-	    if self.num_update > self.num_burn_in and self.num_update % (self.target_update_freq/10.0) == 0:
-		self.mean_q.append(self.eval_avg_q())
-		self.train_loss.append(self.q_network.evaluate(x=[input_state_batch, input_mask_batch], y=output_target_batch))
+	    	if  self.num_update % (self.train_freq * 25) == 0:
+			self.mean_q.append(self.eval_avg_q())
+			self.train_loss.append(self.q_network.evaluate(x=[input_state_batch, input_mask_batch], y=output_target_batch))
+
+		self.save_data(freq=self.target_update_freq)
 
             #env.render()
             state = nextstate
             self.num_update += 1
+	    self.update_policy()
 
-	    if self.num_update % self.target_update_freq == 0:
+            if is_terminal:
+                break
+    def save_data(self,freq):
+	if self.num_update % freq == 0:
 		plt.plot(self.mean_q)
 		plt.savefig('mean_q_{0}.jpg'.format(self.model_name))
+		plt.close()
 		plt.plot(self.train_loss)
 		plt.savefig('train_loss_{0}.jpg'.format(self.model_name))
+		plt.close()
 		with open('mean_q_{0}.data'.format(self.model_name),'w') as f:
 			pickle.dump(self.mean_q,f)
 		with open('train_loss_{0}.data'.format(self.model_name),'w') as f:
 			pickle.dump(self.train_loss,f)
 		self.q_network.save_weights('source_{0}.weight'.format(self.model_name))
 		self.qt_network.save_weights('target_{0}.weight'.format(self.model_name))
-
-		self.update_policy()
-
-            if is_terminal:
-                break
 
     def eval_avg_q(self):
 	return np.mean(np.amax(self.calc_q_values([self.rand_states, self.rand_states_mask]), axis=1))

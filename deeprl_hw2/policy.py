@@ -135,7 +135,10 @@ class LinearDecayGreedyEpsilonPolicy(Policy):
 
     def __init__(self, policy, attr_name, start_value, end_value,
                  num_steps):  # noqa: D102
-        pass
+	self.policy=GreedyEpsilonPolicy(start_value)
+        self.end_value = end_value
+        self.start_value = start_value
+        self.num_steps = num_steps
 
     def select_action(self, **kwargs):
         """Decay parameter and select action.
@@ -152,8 +155,17 @@ class LinearDecayGreedyEpsilonPolicy(Policy):
         Any:
           Selected action.
         """
-        pass
+	# Linear annealed epsilon=x: f(x) = ax + b.
+        a = -float(self.end_value - self.start_value) / float(self.num_steps)
+        b = float(self.end_value)
+        self.epsilon = max(self.start_value, a * float(step) + b)
+        
+        b=float(self.start_value)
+        a=float(self.end_value - self.start_value) / float(self.num_steps)
+        self.policy.epsilon = min(self.end_value, a * float(step) + b)
+        #TODO: the agents step start from 0
+	return self.policy.select_action()
 
     def reset(self):
-        """Start the decay over at the start value."""
-        pass
+	"""Start the decay over at the start value."""
+        self.policy.epsilon=start_value
