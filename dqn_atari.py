@@ -7,18 +7,6 @@ import random
 
 import numpy as np
 
-#import tensorflow as tf
-#
-#from keras.layers import (Activation, Convolution2D, Dense, Flatten, Input,
-#                          Permute)
-#from keras.models import Model
-#from keras.optimizers import Adam
-
-
-#import skimage as skimage
-#from skimage import transform, color, exposure
-#from skimage.transform import rotate
-#from skimage.viewer import ImageViewer
 
 import deeprl_hw2 as tfrl
 from deeprl_hw2.dqn import DQNAgent
@@ -26,6 +14,17 @@ from deeprl_hw2.objectives import mean_huber_loss
 
 import gym
 
+
+GAMMA = 0.9
+ALPHA = 1e-4
+EPSILON = 0.05
+REPLAY_BUFFER_SIZE = 1000000
+BATCH_SIZE = 32
+IMG_ROWS , IMG_COLS = 84, 84
+WINDOW = 4
+TARGET_FREQ = 1000
+NUM_BURN_IN = 1000
+TRAIN_FREQ=4
 
 
 def get_output_folder(parent_dir, env_name):
@@ -73,10 +72,8 @@ def main():  # noqa: D103
     parser.add_argument('--seed', default=0, type=int, help='Random seed')
 
     args = parser.parse_args()
-    #TODO: input_shape as argument?
-    #args.input_shape = tuple(args.input_shape)
 
-    #args.output = get_output_folder(args.output, args.env)
+
 
     atari_preproc = tfrl.preprocessors.AtariPreprocessor(new_size=(84,84))
     history_preproc = tfrl.preprocessors.HistoryPreprocessor(history_length = 4)
@@ -84,22 +81,22 @@ def main():  # noqa: D103
 
     replay_mem = tfrl.core.ReplayMemory(max_size=1e6, window_length=4)
 
-    policy_unirand = tfrl.policy.UniformRandomPolicy(num_actions = 9)
-    policy_greedy = tfrl.policy.GreedyPolicy()
-    policy_epsilon = tfrl.policy.GreedyEpsilonPolicy(epsilon=0.05)
 
-    dqn_agent = DQNAgent(model_name 	    = 'LINEAR', \
-			 preprocessors      = [atari_preproc, history_preproc, preproc], \
-			 memory 	    = replay_mem, \
-			 policy		    = [policy_unirand,policy_greedy,policy_epsilon], \
-			 gamma		    = 0.9, \
-			 target_update_freq = 1000, \
-			 num_burn_in 	    = 1000, \
-			 train_freq 	    = 4, \
-			 batch_size 	    = 32 )
-    dqn_agent.compile(optimizer='Adam', loss_func=mean_huber_loss)
    
     env = gym.make('Enduro-v0')
+    
+    dqn_agent = DQNAgent(model_name 	    = 'LINEAR', \
+                         preprocessors      = [atari_preproc, history_preproc, preproc], \
+                         memory 	    = replay_mem, \
+                         observing_policy = tfrl.policy.UniformRandomPolicy(num_actions = env.action_space.n),\
+                         testing_policy = tfrl.policy.GreedyEpsilonPolicy(0.5), \
+                         training_policy = tfrl.policy.LinearDecayGreedyEpsilonPolicy(0.5,0.05,10000), \
+                         gamma		    = GAMMA, \
+                         target_update_freq = TARGET_FREQ, \
+                         num_burn_in 	    = NUM_BURN_IN, \
+                         train_freq 	    = TRAIN_FREQ, \
+                         batch_size 	    = BATCH_SIZE )
+    dqn_agent.compile(optimizer='Adam', loss_func=mean_huber_loss)
 
     dqn_agent.fit(env, num_iterations=100000, max_episode_length=10000)
     
