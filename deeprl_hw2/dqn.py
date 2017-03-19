@@ -21,6 +21,7 @@ TARGET_QNET_RESET_INTERVAL = 10000
 SAMPLES_BURN_IN = 10000
 TRAINING_FREQUENCY=4
 LEARNING_RATE = 0.01
+MOMENTUM = 0.8
 
 class DQNAgent:
     
@@ -69,6 +70,8 @@ class DQNAgent:
                  testing_policy,
                  training_policy,
                  gamma=GAMMA,
+                 alpha=ALPHA,
+                 momentum=MOMENTUM,
                  target_update_freq=TARGET_QNET_RESET_INTERVAL,
                  num_burn_in=SAMPLES_BURN_IN,
                  train_freq=TRAINING_FREQUENCY,
@@ -102,7 +105,8 @@ class DQNAgent:
         self.train_freq		= train_freq
         self.batch_size		= batch_size
         self.num_update 	= 0
-
+        self.alpha = alpha
+        self.momentum = momentum
         self.train_loss	= []
         self.mean_q	= []
         self.rand_states 	= np.random.randint(255, size=(10000, 4, 84, 84))
@@ -180,7 +184,7 @@ class DQNAgent:
 
         if optimizer == 'Adam':
                 opti = optimizers.Adam(lr=LEARNING_RATE)
-        self.q_network.compile(loss=loss_func, optimizer = opti)
+        self.q_network.compile(loss=loss_func, optimizer = opti, momentum = self.momentum, lr = self.alpha)
 
     def calc_q_values(self, state):
         """Given a state (or batch of states) calculate the Q-values.
@@ -316,33 +320,33 @@ class DQNAgent:
             self.memory.clear()
             for step in range(max_episode_length*self.train_freq):
                 if step > 0:
-                state_history = nextstate_history
+                    state_history = nextstate_history
                 if step > self.num_burn_in:
-                action = self.select_action(policy='training',state=[state_history, input_dummymask])
+                    action = self.select_action(policy='training',state=[state_history, input_dummymask])
                 else: # uniform before momery initialized
-                action = self.select_action(policy='observing')
-                nextstate, reward, is_terminal, debug_info = env.step(action)
+                    action = self.select_action(policy='observing')
+                    nextstate, reward, is_terminal, debug_info = env.step(action)
                 if is_terminal:
-                break
+                    break
 
                 nextstate_history = self.preproc.get_history(nextstate)
                 if step > 0:
-                self.memory.append(state_history, \
-                           action, \
-                           self.atari_proc.process_reward(reward), \
-                           nextstate_history, \
-                           is_terminal)
+                    self.memory.append(state_history, \
+                                       action, \
+                                       self.atari_proc.process_reward(reward), \
+                                       nextstate_history, \
+                                       is_terminal)
                 # train q_network
                 if step >= self.num_burn_in:
-                if self.num_update == self.num_burn_in:
-                    print '=========== Memory burn in ({0}) finished =========='.format(self.num_burn_in)
-                self.update_policy()
+                    if self.num_update == self.num_burn_in:
+                        print '=========== Memory burn in ({0}) finished =========='.format(self.num_burn_in)
+                        self.update_policy()
                 #env.render()
                 state = nextstate
                 self.num_update += 1
 
 
-        def save_data(self,freq):
+    def save_data(self,freq):
         if self.num_update % freq == 0:
             plt.plot(self.mean_q)
             plt.savefig('mean_q_{0}.jpg'.format(self.model_name))
@@ -357,7 +361,7 @@ class DQNAgent:
             self.q_network.save_weights('source_{0}.weight'.format(self.model_name))
             self.qt_network.save_weights('target_{0}.weight'.format(self.model_name))
 
-        def eval_avg_q(self):
+    def eval_avg_q(self):
         return np.mean(np.amax(self.calc_q_values([self.rand_states, self.rand_states_mask]), axis=1))
 
     def evaluate(self, env, num_episodes, max_episode_length=None):
