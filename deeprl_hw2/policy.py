@@ -161,15 +161,10 @@ class LinearDecayGreedyEpsilonPolicy(Policy):
           Selected action.
         """
         # Linear annealed epsilon=x: f(x) = ax + b.
-        #a = -float(self.end_value - self.start_value) / float(self.num_steps)
-        #b = float(self.end_value)
-        #self.epsilon = max(self.start_value, a * float(step) + b)
+        a = -float(self.start_value - self.end_value) / float(self.num_steps)
+        b = float(self.start_value)
+        self.epsilon = max(self.start_value, a * float(step) + b)
         
-        #b=float(self.start_value)
-        #a=float(self.end_value - self.start_value) / float(self.num_steps)
-        #self.policy.epsilon = min(self.end_value, a * float(step) + b)
-        #TODO: the agents step start from 0
-       
         return self.policy.select_action(**kwargs)
         
         pass
