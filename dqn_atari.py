@@ -91,7 +91,7 @@ def main():  # noqa: D103
     dqn_agent = DQNAgent(model_name 	    = 'LINEAR', \
 			 preprocessors      = [atari_preproc, history_preproc, preproc], \
 			 memory 	    = replay_mem, \
-			 policy		    = policy_epsilon, \
+			 policy		    = [policy_unirand,policy_greedy,policy_epsilon], \
 			 gamma		    = 0.9, \
 			 target_update_freq = 1000, \
 			 num_burn_in 	    = 1000, \

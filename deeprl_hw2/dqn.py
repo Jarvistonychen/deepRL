@@ -226,7 +226,12 @@ class DQNAgent:
         --------
         selected action
         """
-	return self.policy.select_action(self.calc_q_values(state))
+	if kwargs['policy'] == 'uniform':
+		return self.policy[0].select_action(self.calc_q_values(state))
+	elif kwargs['policy'] == 'greedy':
+		return self.policy[1].select_action(self.calc_q_values(state))
+	elif kwargs['policy'] == 'greedyepsilon':
+		return self.policy[2].select_action(self.calc_q_values(state))
 
     def update_policy(self):
         """Update your policy.
@@ -266,11 +271,11 @@ class DQNAgent:
 		for ind in range(self.batch_size):
 			output_target_batch[ind, mem_samples[ind].action] = mem_samples[ind].reward + self.gamma*best_target_q[ind]
 
-		self.q_network.fit(x=[input_state_batch, input_mask_batch], y=output_target_batch, batch_size=32, epochs=1)
+		temp_loss = self.q_network.train_on_batch(x=[input_state_batch, input_mask_batch], y=output_target_batch)
 	
 	if  self.num_update % (self.train_freq * 25) == 0:
 		self.mean_q.append(self.eval_avg_q())
-		self.train_loss.append(self.q_network.evaluate(x=[input_state_batch, input_mask_batch], y=output_target_batch))
+		self.train_loss.append(temp_loss)
 
 	self.save_data(freq=self.target_update_freq)
 
@@ -305,18 +310,22 @@ class DQNAgent:
           resets. Can help exploration.
         """
 	input_dummymask = np.ones((1,9))
-	while self.num_update < num_iterations:
+	while self.num_update < num_iterations*self.train_freq:
 		env.reset()
 		self.atari_proc.reset()
 		self.hist_proc.reset()
 		self.memory.clear()
-		for step in range(max_episode_length):
+		for step in range(max_episode_length*self.train_freq):
 		    if step > 0:
 			state_history = nextstate_history
-			action = self.select_action([state_history, input_dummymask])
-		    else:
+		    if step > self.num_burn_in:
+			action = self.select_action([state_history, input_dummymask],policy='greedyepsilon')
+		    else: # uniform before momery initialized
 			action = env.action_space.sample()
 		    nextstate, reward, is_terminal, debug_info = env.step(action)
+		    if is_terminal:
+			break
+
 		    nextstate_history = self.preproc.get_history(nextstate)
 		    if step > 0:
 			self.memory.append(state_history, \
@@ -325,7 +334,7 @@ class DQNAgent:
 					   nextstate_history, \
 					   is_terminal)
 		    # train q_network
-		    if self.num_update >= self.num_burn_in:
+		    if step >= self.num_burn_in:
 			if self.num_update == self.num_burn_in:
 			    print '=========== Memory burn in ({0}) finished =========='.format(self.num_burn_in)
 			self.update_policy()
@@ -333,8 +342,6 @@ class DQNAgent:
 		    state = nextstate
 		    self.num_update += 1
 
-		    if is_terminal:
-			break
 
     def save_data(self,freq):
 	if self.num_update % freq == 0:
