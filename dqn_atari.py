@@ -97,7 +97,7 @@ def main():  # noqa: D103
 			 num_burn_in 	    = 1000, \
 			 train_freq 	    = 4, \
 			 batch_size 	    = 32 )
-    dqn_agent.compile(optimizer='Adam', loss_func='mse')
+    dqn_agent.compile(optimizer='Adam', loss_func=mean_huber_loss)
    
     env = gym.make('Enduro-v0')
 
