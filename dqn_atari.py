@@ -25,6 +25,7 @@ WINDOW = 4
 TARGET_FREQ = 1000
 NUM_BURN_IN = 1000
 TRAIN_FREQ=4
+MOMENTUM = 0.8
 
 
 def get_output_folder(parent_dir, env_name):
@@ -92,6 +93,8 @@ def main():  # noqa: D103
                          testing_policy = tfrl.policy.GreedyEpsilonPolicy(0.5), \
                          training_policy = tfrl.policy.LinearDecayGreedyEpsilonPolicy(0.5,0.05,10000), \
                          gamma		    = GAMMA, \
+                         alpha = ALPHA, \
+                         momentum = MOMENTUM, \
                          target_update_freq = TARGET_FREQ, \
                          num_burn_in 	    = NUM_BURN_IN, \
                          train_freq 	    = TRAIN_FREQ, \
