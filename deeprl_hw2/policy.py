@@ -21,7 +21,7 @@ class Policy:
     random action will be chosen.
     """
 
-    def select_action(self, **kwargs):
+    def select_action(self):
         """Used by agents to select actions.
 
         Returns
@@ -53,7 +53,7 @@ class UniformRandomPolicy(Policy):
         assert num_actions >= 1
         self.num_actions = num_actions
 
-    def select_action(self, **kwargs):
+    def select_action(self):
         """Return a random action index.
 
         This policy cannot contain others (as they would just be ignored).
@@ -75,7 +75,7 @@ class GreedyPolicy(Policy):
     This is a pure exploitation policy.
     """
 
-    def select_action(self, q_values, **kwargs):  # noqa: D102
+    def select_action(self, q_values):  # noqa: D102
         return np.argmax(q_values)
 
 
@@ -94,7 +94,7 @@ class GreedyEpsilonPolicy(Policy):
     def __init__(self, epsilon):
 	self.epsilon = epsilon
 
-    def select_action(self, q_values, **kwargs):
+    def select_action(self, q_values):
         """Run Greedy-Epsilon for the given Q-values.
 
         Parameters
@@ -133,14 +133,15 @@ class LinearDecayGreedyEpsilonPolicy(Policy):
 
     """
 
-    def __init__(self, policy, attr_name, start_value, end_value,
+    def __init__(self,start_value, end_value,
                  num_steps):  # noqa: D102
         self.policy=GreedyEpsilonPolicy(start_value)
         self.end_value = end_value
         self.start_value = start_value
         self.num_steps = num_steps
+        self.agent=[]
 
-    def select_action(self, **kwargs):
+    def select_action(self, q_values):
         """Decay parameter and select action.
 
         Parameters
@@ -158,8 +159,8 @@ class LinearDecayGreedyEpsilonPolicy(Policy):
 	# Linear annealed epsilon=x: f(x) = ax + b.
         a = -float(self.start_value - self.end_value) / float(self.num_steps)
         b = float(self.start_value)
-        self.epsilon = max(self.start_value, a * float(step) + b)
-	return self.policy.select_action()
+        self.epsilon = max(self.start_value, a * float(self.agent.num_update) + b)
+	return self.policy.select_action(q_values)
 
     def reset(self):
 	"""Start the decay over at the start value."""
