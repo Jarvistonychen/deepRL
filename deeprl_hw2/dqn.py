@@ -65,7 +65,9 @@ class DQNAgent:
 		 model_name,
                  preprocessors,
                  memory,
-                 policy,
+                 observing_policy,
+                 testing_policy,
+                 training_policy,
                  gamma=GAMMA,
                  target_update_freq=TARGET_QNET_RESET_INTERVAL,
                  num_burn_in=SAMPLES_BURN_IN,
@@ -90,7 +92,10 @@ class DQNAgent:
 	print self.q_network.get_config()
 
         self.memory	 	= memory
-        self.policy	 	= policy
+        self.observing_policy = observing_policy
+        self.testing_policy = testing_policy
+        self.training_policy = training_policy
+        self.training_policy.agent=self
         self.gamma	 	= gamma
         self.target_update_freq = target_update_freq
         self.num_burn_in 	= num_burn_in
@@ -98,8 +103,8 @@ class DQNAgent:
         self.batch_size		= batch_size
 	self.num_update 	= 0
 
-	self.train_loss		= []
-	self.mean_q		= []
+	self.train_loss	= []
+	self.mean_q	= []
 	self.rand_states 	= np.random.randint(255, size=(10000, 4, 84, 84))
 	self.rand_states_mask 	= np.ones((10000, 9))
 
@@ -205,7 +210,7 @@ class DQNAgent:
         """
 	return self.q_network.predict(state, batch_size = 1)
 
-    def select_action(self, state, **kwargs):
+    def select_action(self, policy,**kwargs):
         """Select the action based on the current state.
 
         You will probably want to vary your behavior here based on
@@ -226,12 +231,22 @@ class DQNAgent:
         --------
         selected action
         """
-	if kwargs['policy'] == 'uniform':
-		return self.policy[0].select_action(self.calc_q_values(state))
-	elif kwargs['policy'] == 'greedy':
-		return self.policy[1].select_action(self.calc_q_values(state))
-	elif kwargs['policy'] == 'greedyepsilon':
-		return self.policy[2].select_action(self.calc_q_values(state))
+
+	if policy == 'observing':
+    	#if 'state' in kwargs:
+		#	return self.observing_policy.select_action(self.calc_q_values(kwargs['state']))
+        #else: 
+ 		return self.observing_policy.select_action()
+	elif policy == 'testing':
+	#	if 'state' in kwargs:
+		return self.testing_policy.select_action(self.calc_q_values(kwargs['state']))
+    #	else:
+	#		return self.testing_policy.select_action()
+	elif policy == 'training':
+	#	if 'state' in kwargs:
+		return self.training_policy.select_action(self.calc_q_values(kwargs['state']))
+    #    else: 
+	#return self.training_policy.select_action()
 
     def update_policy(self):
         """Update your policy.
@@ -309,7 +324,7 @@ class DQNAgent:
           How long a single episode should last before the agent
           resets. Can help exploration.
         """
-	input_dummymask = np.ones((1,9))
+	input_dummymask = np.ones((1,env.action_space.n))
 	while self.num_update < num_iterations*self.train_freq:
 		env.reset()
 		self.atari_proc.reset()
@@ -319,9 +334,9 @@ class DQNAgent:
 		    if step > 0:
 			state_history = nextstate_history
 		    if step > self.num_burn_in:
-			action = self.select_action([state_history, input_dummymask],policy='greedyepsilon')
+			action = self.select_action(policy='training',state=[state_history, input_dummymask])
 		    else: # uniform before momery initialized
-			action = env.action_space.sample()
+			action = self.select_action(policy='observing')
 		    nextstate, reward, is_terminal, debug_info = env.step(action)
 		    if is_terminal:
 			break
