@@ -183,7 +183,7 @@ class DQNAgent:
         """
 
         if optimizer == 'Adam':
-                opti = optimizers.Adam(lr=LEARNING_RATE)
+                opti = optimizers.Adam(lr=self.alpha)
         self.q_network.compile(loss=loss_func, optimizer = opti, momentum = self.momentum, lr = self.alpha)
 
     def calc_q_values(self, state):
@@ -325,7 +325,7 @@ class DQNAgent:
                     action = self.select_action(policy='training',state=[state_history, input_dummymask])
                 else: # uniform before momery initialized
                     action = self.select_action(policy='observing')
-                    nextstate, reward, is_terminal, debug_info = env.step(action)
+                nextstate, reward, is_terminal, debug_info = env.step(action)
                 if is_terminal:
                     break
 
@@ -340,7 +340,7 @@ class DQNAgent:
                 if step >= self.num_burn_in:
                     if self.num_update == self.num_burn_in:
                         print '=========== Memory burn in ({0}) finished =========='.format(self.num_burn_in)
-                        self.update_policy()
+                    self.update_policy()
                 #env.render()
                 state = nextstate
                 self.num_update += 1
