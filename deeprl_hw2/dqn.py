@@ -1,8 +1,7 @@
 """Main DQN agent."""
 
 from keras import optimizers
-from keras.layers import (Activation, Conv2D, Dense, Flatten, Input,
-                          Multiply)
+from keras.layers import (Activation, Conv2D, Dense, Flatten, Input,Multiply,BatchNormalization)
 from keras.models import Model
 import numpy as np
 import pickle
@@ -145,9 +144,12 @@ class DQNAgent:
             a1 = Input(shape=(window,input_shape[0],input_shape[1]))
             a2 = Input(shape=(num_actions,))
             b = Conv2D(16, (8, 8), strides=4, padding='same',use_bias=True,activation='relu', data_format='channels_first')(a1)
+	    b = BatchNormalization(axis=1)(b)
             c = Conv2D(32, (4, 4), strides=2, padding='same',use_bias=True,activation='relu', data_format='channels_first')(b)
+	    c = BatchNormalization(axis=1)(c)
             d = Flatten()(c)
             e = Dense(256, activation='relu')(d)
+	    #e = GaussianDropout(e)
             f = Dense(num_actions)(e)
             h = Multiply()([f,a2])
             model = Model(inputs=[a1,a2], outputs=[h])  

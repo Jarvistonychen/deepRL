@@ -158,7 +158,7 @@ class LinearDecayGreedyEpsilonPolicy(Policy):
 	# Linear annealed epsilon=x: f(x) = ax + b.
         a = -float(self.start_value - self.end_value) / float(self.num_steps)
         b = float(self.start_value)
-        self.policy.epsilon = max(self.start_value, a * float(num_update) + b)
+        self.policy.epsilon = max(self.end_value, a * float(num_update) + b)
 	return self.policy.select_action(q_values)
 
     def reset(self):

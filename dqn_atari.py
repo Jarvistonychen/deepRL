@@ -15,14 +15,14 @@ from deeprl_hw2.objectives import mean_huber_loss
 import gym
 
 
-GAMMA = 0.9
+GAMMA = 0.99
 ALPHA = 1e-4
 EPSILON = 0.05
 REPLAY_BUFFER_SIZE = 1000000
 BATCH_SIZE = 32
 IMG_ROWS , IMG_COLS = 84, 84
 WINDOW = 4
-TARGET_FREQ = 1000
+TARGET_FREQ = 10000
 NUM_BURN_IN = 1000
 TRAIN_FREQ=4
 MOMENTUM = 0.8
@@ -86,12 +86,12 @@ def main():  # noqa: D103
    
     env = gym.make('Enduro-v0')
     
-    dqn_agent = DQNAgent(model_name 	    = 'LINEAR', \
+    dqn_agent = DQNAgent(model_name 	    = 'DQN2layer', \
                          preprocessors      = [atari_preproc, history_preproc, preproc], \
                          memory 	    = replay_mem, \
                          observing_policy   = tfrl.policy.UniformRandomPolicy(num_actions = env.action_space.n),\
                          testing_policy     = tfrl.policy.GreedyEpsilonPolicy(0.05), \
-                         training_policy    = tfrl.policy.LinearDecayGreedyEpsilonPolicy(0.5,0.05,10000), \
+                         training_policy    = tfrl.policy.LinearDecayGreedyEpsilonPolicy(1, 0.1, 1000000), \
                          gamma		    = GAMMA, \
                          alpha 		    = ALPHA, \
                          momentum 	    = MOMENTUM, \
@@ -102,7 +102,7 @@ def main():  # noqa: D103
 
     dqn_agent.compile(optimizer='Adam', loss_func=mean_huber_loss)
 
-    dqn_agent.fit(env, num_iterations=100000, max_episode_length=10000)
+    dqn_agent.fit(env, num_iterations=5000000, max_episode_length=10000)
     
 
 
