@@ -329,7 +329,7 @@ class DQNAgent:
                 if is_terminal:
                     break
 
-                nextstate_history = self.preproc.get_history(nextstate)
+                nextstate_history = self.preproc.get_history_for_memory(nextstate)
                 if step > 0:
                     self.memory.append(state_history, \
                                        action, \
@@ -377,4 +377,21 @@ class DQNAgent:
         You can also call the render function here if you want to
         visually inspect your policy.
         """
-        pass
+        self.q_network.load_weights('source_{0}.weight'.format(self.model_name))
+        input_dummymask = np.ones((1,env.action_space.n))
+        env.reset()
+        self.atari_proc.reset()
+        self.hist_proc.reset()
+        for step in range(max_episode_length):
+            if step > 0:
+                state_history = nextstate_history
+                action = self.select_action(policy='testing',state=[state_history, input_dummymask])
+            else: # uniform before momery initialized
+                action = self.select_action(policy='observing')
+            nextstate, reward, is_terminal, debug_info = env.step(action)
+            if is_terminal:
+                break
+
+            nextstate_history = self.preproc.get_history_for_network(nextstate)
+            env.render()
+            state = nextstate

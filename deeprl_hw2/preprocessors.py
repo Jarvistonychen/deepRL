@@ -27,7 +27,8 @@ class HistoryPreprocessor(Preprocessor):
     def __init__(self, history_length=4):
         self.hist_len = history_length
 	# keras/TF requires input to be 4-dimenional: batch, channel, row ,col
-	self.state_seq = np.zeros((1,self.hist_len, 84,84), dtype=np.uint8)
+	self.state_seq_mem = np.zeros((1,self.hist_len, 84,84), dtype=np.uint8)
+	self.state_seq = np.zeros((1,self.hist_len, 84,84))
 
     # state here is already processed in AtariPreprocessor
     def process_state_for_network(self, state):
@@ -38,6 +39,14 @@ class HistoryPreprocessor(Preprocessor):
 	temp_state_seq = np.copy(self.state_seq)
 	return temp_state_seq
 		
+    # state here is already processed in AtariPreprocessor
+    def process_state_for_memory(self, state):
+        """You only want history when you're deciding the current action to take."""
+	for hist in range(self.hist_len-1):
+		self.state_seq_mem[0,hist,:,:] = self.state_seq_mem[0,hist+1,:,:]
+	self.state_seq_mem[0,self.hist_len-1, :,:] = state
+	temp_state_seq_mem = np.copy(self.state_seq_mem)
+	return temp_state_seq_mem
 
     def reset(self):
         """Reset the history sequence.
@@ -171,6 +180,10 @@ class PreprocessorSequence(Preprocessor):
 	self.atari = preprocessors[0]
 	self.history = preprocessors[1]
 
-    def get_history(self, state):
+    def get_history_for_memory(self, state):
 	state = self.atari.process_state_for_memory(state)
+	return self.history.process_state_for_memory(state)
+
+    def get_history_for_network(self, state):
+	state = self.atari.process_state_for_network(state)
 	return self.history.process_state_for_network(state)

@@ -90,15 +90,16 @@ def main():  # noqa: D103
                          preprocessors      = [atari_preproc, history_preproc, preproc], \
                          memory 	    = replay_mem, \
                          observing_policy   = tfrl.policy.UniformRandomPolicy(num_actions = env.action_space.n),\
-                         testing_policy     = tfrl.policy.GreedyEpsilonPolicy(0.5), \
+                         testing_policy     = tfrl.policy.GreedyEpsilonPolicy(0.05), \
                          training_policy    = tfrl.policy.LinearDecayGreedyEpsilonPolicy(0.5,0.05,10000), \
                          gamma		    = GAMMA, \
-                         alpha = ALPHA, \
-                         momentum = MOMENTUM, \
+                         alpha 		    = ALPHA, \
+                         momentum 	    = MOMENTUM, \
                          target_update_freq = TARGET_FREQ, \
                          num_burn_in 	    = NUM_BURN_IN, \
                          train_freq 	    = TRAIN_FREQ, \
                          batch_size 	    = BATCH_SIZE )
+
     dqn_agent.compile(optimizer='Adam', loss_func=mean_huber_loss)
 
     dqn_agent.fit(env, num_iterations=100000, max_episode_length=10000)
