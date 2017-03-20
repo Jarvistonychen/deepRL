@@ -65,7 +65,7 @@ class DQNAgent:
     """
     def __init__(self,
                  model_name,
-		 num_actions,
+                 num_actions,
                  preprocessors,
                  memory,
                  observing_policy,
@@ -81,17 +81,17 @@ class DQNAgent:
 
 
         self.model_name 	= model_name
-	self.num_actions	= num_actions
+        self.num_actions	= num_actions
         self.atari_proc  	= preprocessors[0]
         self.hist_proc  	= preprocessors[1]
         self.preproc     	= preprocessors[2]
         self.q_network   	= self.create_model(window = WINDOW, \
 						    input_shape = (IMG_ROWS, IMG_COLS), \
-						    num_actions = 9, \
+						    num_actions = self.num_actions, \
 						    model_name	= self.model_name)
         self.qt_network  	= self.create_model(window = WINDOW, \
 						    input_shape = (IMG_ROWS, IMG_COLS), \
-						    num_actions = 9, \
+						    num_actions = self.num_actions, \
 						    model_name	= self.model_name)
         print 'model summary'
         print self.q_network.summary()
@@ -265,8 +265,8 @@ class DQNAgent:
             mem_samples = self.atari_proc.process_batch(mem_samples)
             input_state_batch=np.zeros((self.batch_size, 4, 84, 84))
             input_nextstate_batch=np.zeros((self.batch_size, 4, 84, 84))
-            input_mask_batch=np.zeros((self.batch_size,9))
-            output_target_batch=np.zeros((self.batch_size,9))
+            input_mask_batch=np.zeros((self.batch_size,self.num_actions))
+            output_target_batch=np.zeros((self.batch_size,self.num_actions))
             for ind in range(self.batch_size):
                 input_state_batch[ind,:,:,:] = mem_samples[ind].state
                 input_nextstate_batch[ind,:,:,:] = mem_samples[ind].next_state
