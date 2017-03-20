@@ -110,7 +110,7 @@ class GreedyEpsilonPolicy(Policy):
         """
 	rand_num = np.random.rand()
 	num_act = q_values.shape[0]
-	if rand_num < self.epsilon*num_act:
+	if rand_num < self.epsilon:
 		return np.random.randint(num_act)
 	else:
 		return np.argmax(q_values)
@@ -139,9 +139,8 @@ class LinearDecayGreedyEpsilonPolicy(Policy):
         self.end_value = end_value
         self.start_value = start_value
         self.num_steps = num_steps
-        self.agent=[]
 
-    def select_action(self, q_values):
+    def select_action(self, q_values, num_update):
         """Decay parameter and select action.
 
         Parameters
@@ -159,7 +158,7 @@ class LinearDecayGreedyEpsilonPolicy(Policy):
 	# Linear annealed epsilon=x: f(x) = ax + b.
         a = -float(self.start_value - self.end_value) / float(self.num_steps)
         b = float(self.start_value)
-        self.epsilon = max(self.start_value, a * float(self.agent.num_update) + b)
+        self.policy.epsilon = max(self.start_value, a * float(num_update) + b)
 	return self.policy.select_action(q_values)
 
     def reset(self):

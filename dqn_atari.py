@@ -89,9 +89,9 @@ def main():  # noqa: D103
     dqn_agent = DQNAgent(model_name 	    = 'LINEAR', \
                          preprocessors      = [atari_preproc, history_preproc, preproc], \
                          memory 	    = replay_mem, \
-                         observing_policy = tfrl.policy.UniformRandomPolicy(num_actions = env.action_space.n),\
-                         testing_policy = tfrl.policy.GreedyEpsilonPolicy(0.5), \
-                         training_policy = tfrl.policy.LinearDecayGreedyEpsilonPolicy(0.5,0.05,10000), \
+                         observing_policy   = tfrl.policy.UniformRandomPolicy(num_actions = env.action_space.n),\
+                         testing_policy     = tfrl.policy.GreedyEpsilonPolicy(0.5), \
+                         training_policy    = tfrl.policy.LinearDecayGreedyEpsilonPolicy(0.5,0.05,10000), \
                          gamma		    = GAMMA, \
                          alpha = ALPHA, \
                          momentum = MOMENTUM, \

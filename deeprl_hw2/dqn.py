@@ -95,20 +95,20 @@ class DQNAgent:
         print self.q_network.get_config()
 
         self.memory	 	= memory
-        self.observing_policy = observing_policy
-        self.testing_policy = testing_policy
-        self.training_policy = training_policy
-        self.training_policy.agent=self
-        self.gamma = gamma
+        self.observing_policy 	= observing_policy
+        self.testing_policy 	= testing_policy
+        self.training_policy 	= training_policy
+        #self.training_policy.agent=self
+        self.gamma 		= gamma
         self.target_update_freq = target_update_freq
         self.num_burn_in 	= num_burn_in
         self.train_freq		= train_freq
         self.batch_size		= batch_size
         self.num_update 	= 0
-        self.alpha = alpha
-        self.momentum = momentum
-        self.train_loss	= []
-        self.mean_q	= []
+        self.alpha 		= alpha
+        self.momentum 		= momentum
+        self.train_loss		= []
+        self.mean_q		= []
         self.rand_states 	= np.random.randint(255, size=(10000, 4, 84, 84))
         self.rand_states_mask 	= np.ones((10000, 9))
 
@@ -184,7 +184,7 @@ class DQNAgent:
 
         if optimizer == 'Adam':
                 opti = optimizers.Adam(lr=self.alpha)
-        self.q_network.compile(loss=loss_func, optimizer = opti, momentum = self.momentum, lr = self.alpha)
+        self.q_network.compile(loss=loss_func, optimizer = opti)
 
     def calc_q_values(self, state):
         """Given a state (or batch of states) calculate the Q-values.
@@ -226,7 +226,7 @@ class DQNAgent:
                     return self.observing_policy.select_action()
         elif policy == 'training':
                 if 'state' in kwargs:
-                    return self.training_policy.select_action(self.calc_q_values(kwargs['state']))
+                    return self.training_policy.select_action(self.calc_q_values(kwargs['state']), self.num_update)
                 else:
                     return self.training_policy.select_action()
         elif policy == 'testing':
