@@ -21,6 +21,8 @@ SAMPLES_BURN_IN = 10000
 TRAINING_FREQUENCY=4
 LEARNING_RATE = 0.01
 MOMENTUM = 0.8
+NUM_RAND_STATE = 1000
+UPDATE_OFFSET = 100
 
 class DQNAgent:
     
@@ -63,6 +65,7 @@ class DQNAgent:
     """
     def __init__(self,
                  model_name,
+		 num_actions,
                  preprocessors,
                  memory,
                  observing_policy,
@@ -77,7 +80,8 @@ class DQNAgent:
                  batch_size=BATCH_SIZE):
 
 
-        self.model_name = model_name
+        self.model_name 	= model_name
+	self.num_actions	= num_actions
         self.atari_proc  	= preprocessors[0]
         self.hist_proc  	= preprocessors[1]
         self.preproc     	= preprocessors[2]
@@ -108,8 +112,10 @@ class DQNAgent:
         self.momentum 		= momentum
         self.train_loss		= []
         self.mean_q		= []
-        self.rand_states 	= np.random.randint(255, size=(10000, 4, 84, 84))
-        self.rand_states_mask 	= np.ones((10000, 9))
+        self.rand_states 	= np.zeros((NUM_RAND_STATE, 4, 84, 84))
+        self.rand_states_mask 	= np.ones((NUM_RAND_STATE, self.num_actions))
+        self.input_dummymask = np.ones((1,self.num_actions))
+        self.input_dummymask_batch=np.ones((self.batch_size, self.num_actions))
 
     def create_model(self, window, input_shape, num_actions, model_name='DQN2layer'):  # noqa: D103
         """Create the Q-network model.
@@ -254,37 +260,34 @@ class DQNAgent:
         output. They can help you monitor how training is going.
         """
         if self.num_update % self.train_freq == 0:
-            #print 'Memory burn in phase completed. {0} samples'.format(self.num_burn_in)
             # generate batch samples for CNN
             mem_samples = self.memory.sample(self.batch_size)
             mem_samples = self.atari_proc.process_batch(mem_samples)
             input_state_batch=np.zeros((self.batch_size, 4, 84, 84))
             input_nextstate_batch=np.zeros((self.batch_size, 4, 84, 84))
             input_mask_batch=np.zeros((self.batch_size,9))
-            input_dummymask_batch=np.ones((self.batch_size,9))
             output_target_batch=np.zeros((self.batch_size,9))
             for ind in range(self.batch_size):
                 input_state_batch[ind,:,:,:] = mem_samples[ind].state
                 input_nextstate_batch[ind,:,:,:] = mem_samples[ind].next_state
                 input_mask_batch[ind, mem_samples[ind].action] = 1
 
-            target_q = self.calc_q_values([input_nextstate_batch, input_dummymask_batch])
+            target_q = self.calc_q_values([input_nextstate_batch, self.input_dummymask_batch])
             best_target_q = np.amax(target_q, axis=1)
             #print 'best Q values of batch'
             #print best_target_q
-
             for ind in range(self.batch_size):
                 output_target_batch[ind, mem_samples[ind].action] = mem_samples[ind].reward + self.gamma*best_target_q[ind]
 
             temp_loss = self.q_network.train_on_batch(x=[input_state_batch, input_mask_batch], y=output_target_batch)
         
-        if  self.num_update % (self.train_freq * 25) == 0:
-            self.mean_q.append(self.eval_avg_q())
+        if self.num_update % (self.train_freq * 25) == 0:
             self.train_loss.append(temp_loss)
 
-        self.save_data(freq=self.target_update_freq)
+        self.save_data(freq=self.target_update_freq*10)
 
         if self.num_update % self.target_update_freq == 0:
+            self.mean_q.append(self.eval_avg_q())
             print "======================= Sync target and source network ============================="
             tfrl.utils.get_hard_target_model_updates(self.qt_network, self.q_network)
             #get_soft_target_model_updates(self.qt_network, self.q_network)
@@ -314,7 +317,6 @@ class DQNAgent:
           How long a single episode should last before the agent
           resets. Can help exploration.
         """
-        input_dummymask = np.ones((1,env.action_space.n))
         while self.num_update < num_iterations*self.train_freq:
             env.reset()
             self.atari_proc.reset()
@@ -324,15 +326,19 @@ class DQNAgent:
                 if step > 0:
                     state_history = nextstate_history
                 if step > self.num_burn_in:
-                    action = self.select_action(policy='training',state=[state_history, input_dummymask])
+                    action = self.select_action(policy='training',state=[state_history, self.input_dummymask])
                 else: # uniform before momery initialized
                     action = self.select_action(policy='observing')
+		    if self.num_update >= UPDATE_OFFSET and self.num_update < NUM_RAND_STATE + UPDATE_OFFSET:
+		    	self.rand_states[self.num_update-UPDATE_OFFSET,:,:,:] = state_history    
                 nextstate, reward, is_terminal, debug_info = env.step(action)
                 if is_terminal:
                     break
 
                 nextstate_history = self.preproc.get_history_for_memory(nextstate)
                 if step > 0:
+		    if reward >0: 
+		    	print (reward)
                     self.memory.append(state_history, \
                                        action, \
                                        self.atari_proc.process_reward(reward), \
@@ -343,7 +349,7 @@ class DQNAgent:
                     if self.num_update == self.num_burn_in:
                         print '=========== Memory burn in ({0}) finished =========='.format(self.num_burn_in)
                     self.update_policy()
-                #env.render()
+                env.render()
                 state = nextstate
                 self.num_update += 1
 
@@ -380,14 +386,13 @@ class DQNAgent:
         visually inspect your policy.
         """
         self.q_network.load_weights('source_{0}.weight'.format(self.model_name))
-        input_dummymask = np.ones((1,env.action_space.n))
         env.reset()
         self.atari_proc.reset()
         self.hist_proc.reset()
         for step in range(max_episode_length):
             if step > 0:
                 state_history = nextstate_history
-                action = self.select_action(policy='testing',state=[state_history, input_dummymask])
+                action = self.select_action(policy='testing',state=[state_history, self.input_dummymask])
             else: # uniform before momery initialized
                 action = self.select_action(policy='observing')
             nextstate, reward, is_terminal, debug_info = env.step(action)
