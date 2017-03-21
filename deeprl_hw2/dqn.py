@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 
 import deeprl_hw2 as tfrl
 
-GAMMA = 0.9
+GAMMA = 0.99
 ALPHA = 1e-4
 EPSILON = 0.05
 REPLAY_BUFFER_SIZE = 1000000
