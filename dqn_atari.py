@@ -10,6 +10,7 @@ import numpy as np
 
 import deeprl_hw2 as tfrl
 from deeprl_hw2.dqn import DQNAgent
+from deeprl_hw2.dqn import DDQNAgent
 from deeprl_hw2.objectives import mean_huber_loss
 
 import gym
@@ -25,6 +26,7 @@ WINDOW = 4
 TARGET_FREQ = 10000
 NUM_BURN_IN = 3000
 TRAIN_FREQ=4
+#TRAIN_FREQ=1000
 MOMENTUM = 0.8
 MAX_NUM_ITERATIONS=5000000
 ANNEAL_NUM_STEPS = 100000
@@ -88,22 +90,24 @@ def main():  # noqa: D103
    
     env = gym.make('Enduro-v0')
     
+    #ddqn_agent = DDQNAgent(network_type 	    = 'DEEP', \
     dqn_agent = DQNAgent(model_name 	    = 'DQN2layer', \
 			 num_actions	    = env.action_space.n, \
                          preprocessors      = [atari_preproc, history_preproc, preproc], \
                          memory 	    = replay_mem, \
-                         observing_policy   = tfrl.policy.UniformRandomPolicy(num_actions = env.action_space.n),\
+                         burnin_policy 	    = tfrl.policy.UniformRandomPolicy(num_actions = env.action_space.n),\
+                         observing_policy   = tfrl.policy.GreedyPolicy(),\
                          testing_policy     = tfrl.policy.GreedyEpsilonPolicy(0.05), \
-                         training_policy    = tfrl.policy.LinearDecayGreedyEpsilonPolicy(1, 0.1, ANNEAL_NUM_STEPS), \
+                         training_policy    = tfrl.policy.LinearDecayGreedyEpsilonPolicy(1.0, 0.05, ANNEAL_NUM_STEPS), \
                          gamma		    = GAMMA, \
                          alpha 		    = ALPHA, \
-                         momentum 	    = MOMENTUM, \
                          target_update_freq = TARGET_FREQ, \
                          num_burn_in 	    = NUM_BURN_IN, \
                          train_freq 	    = TRAIN_FREQ, \
                          batch_size 	    = BATCH_SIZE )
 
-    dqn_agent.compile(optimizer='RMSprop', loss_func='mse')
+    dqn_agent.compile(optimizer='Adam', loss_func=mean_huber_loss)
+    #ddqn_agent.compile(optimizer='Adam', loss_func=mean_huber_loss)
 
     dqn_agent.fit(env, num_iterations=MAX_NUM_ITERATIONS, max_episode_length=10000)
     
