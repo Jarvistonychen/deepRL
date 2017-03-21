@@ -13,6 +13,7 @@ from deeprl_hw2.dqn import DQNAgent
 from deeprl_hw2.dqn import DDQNAgent
 from deeprl_hw2.objectives import mean_huber_loss
 
+
 import gym
 
 
@@ -90,8 +91,7 @@ def main():  # noqa: D103
    
     env = gym.make('Enduro-v0')
     
-    #ddqn_agent = DDQNAgent(network_type 	    = 'DEEP', \
-    dqn_agent = DQNAgent(model_name 	    = 'DQN2layer', \
+    dqn_agent = DQNAgent(network_type 	    = 'DEEP', \
 			 num_actions	    = env.action_space.n, \
                          preprocessors      = [atari_preproc, history_preproc, preproc], \
                          memory 	    = replay_mem, \

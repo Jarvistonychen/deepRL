@@ -111,6 +111,7 @@ class QNAgent:
         self.input_dummymask = np.ones((1,self.num_actions))
         self.input_dummymask_batch=np.ones((self.batch_size, self.num_actions))
 
+
     def create_deep_model(self, window, input_shape, num_actions):  # noqa: D103
         """Create a deep network for the Q-network model.
             Parameters
@@ -311,8 +312,7 @@ class QNAgent:
                 if is_terminal:
                     break
         
-                env.render()
-                state = nextstate
+                #env.render()
                 self.num_update += 1
 
     def eval_avg_q(self):
