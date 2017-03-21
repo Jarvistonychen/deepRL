@@ -19,7 +19,6 @@ WINDOW = 4
 TARGET_QNET_RESET_INTERVAL = 10000
 SAMPLES_BURN_IN = 10000
 TRAINING_FREQUENCY=4
-LEARNING_RATE = 0.01
 MOMENTUM = 0.8
 NUM_RAND_STATE = 1000
 UPDATE_OFFSET = 100
@@ -87,11 +86,11 @@ class DQNAgent:
         self.preproc     	= preprocessors[2]
         self.q_network   	= self.create_model(window = WINDOW, \
 						    input_shape = (IMG_ROWS, IMG_COLS), \
-						    num_actions = 9, \
+						    num_actions = num_actions, \
 						    model_name	= self.model_name)
         self.qt_network  	= self.create_model(window = WINDOW, \
 						    input_shape = (IMG_ROWS, IMG_COLS), \
-						    num_actions = 9, \
+						    num_actions = num_actions, \
 						    model_name	= self.model_name)
         print 'model summary'
         print self.q_network.summary()
@@ -192,6 +191,8 @@ class DQNAgent:
 
         if optimizer == 'Adam':
                 opti = optimizers.Adam(lr=self.alpha)
+	elif optimizer == 'RMSprop':
+                opti = optimizers.RMSprop(lr=self.alpha)
         self.q_network.compile(loss=loss_func, optimizer = opti)
 
     def calc_q_values(self, state):
@@ -204,6 +205,17 @@ class DQNAgent:
         Q-values for the state(s)
         """
         return self.q_network.predict(state, batch_size = 1)
+
+    def calc_qt_values(self, state):
+        """Given a state (or batch of states) calculate the Q-values.
+
+        Basically run your network on these states.
+
+        Return
+        ------
+        Q-values for the state(s)
+        """
+        return self.qt_network.predict(state, batch_size = 1)
 
     def select_action(self, policy,**kwargs):
         """Select the action based on the current state.
@@ -272,7 +284,7 @@ class DQNAgent:
                 input_nextstate_batch[ind,:,:,:] = mem_samples[ind].next_state
                 input_mask_batch[ind, mem_samples[ind].action] = 1
 
-            target_q = self.calc_q_values([input_nextstate_batch, self.input_dummymask_batch])
+            target_q = self.calc_qt_values([input_nextstate_batch, self.input_dummymask_batch])
             best_target_q = np.amax(target_q, axis=1)
             #print 'best Q values of batch'
             #print best_target_q
@@ -349,7 +361,7 @@ class DQNAgent:
                     if self.num_update == self.num_burn_in:
                         print '=========== Memory burn in ({0}) finished =========='.format(self.num_burn_in)
                     self.update_policy()
-                env.render()
+                #env.render()
                 state = nextstate
                 self.num_update += 1
 

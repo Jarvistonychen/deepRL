@@ -22,12 +22,12 @@ REPLAY_BUFFER_SIZE = 1000000
 BATCH_SIZE = 32
 IMG_ROWS , IMG_COLS = 84, 84
 WINDOW = 4
-TARGET_FREQ = 1000
-NUM_BURN_IN = 1200
+TARGET_FREQ = 10000
+NUM_BURN_IN = 3000
 TRAIN_FREQ=4
 MOMENTUM = 0.8
 MAX_NUM_ITERATIONS=5000000
-ANNEAL_NUM_STEPS = 100
+ANNEAL_NUM_STEPS = 100000
 
 
 def get_output_folder(parent_dir, env_name):
@@ -88,7 +88,7 @@ def main():  # noqa: D103
    
     env = gym.make('Enduro-v0')
     
-    dqn_agent = DQNAgent(model_name 	    = 'LINEAR', \
+    dqn_agent = DQNAgent(model_name 	    = 'DQN2layer', \
 			 num_actions	    = env.action_space.n, \
                          preprocessors      = [atari_preproc, history_preproc, preproc], \
                          memory 	    = replay_mem, \
@@ -103,7 +103,7 @@ def main():  # noqa: D103
                          train_freq 	    = TRAIN_FREQ, \
                          batch_size 	    = BATCH_SIZE )
 
-    dqn_agent.compile(optimizer='Adam', loss_func='mse')
+    dqn_agent.compile(optimizer='RMSprop', loss_func='mse')
 
     dqn_agent.fit(env, num_iterations=MAX_NUM_ITERATIONS, max_episode_length=10000)
     
