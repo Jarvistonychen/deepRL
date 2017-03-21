@@ -93,9 +93,10 @@ def main():  # noqa: D103
 			 num_actions	    = env.action_space.n, \
                          preprocessors      = [atari_preproc, history_preproc, preproc], \
                          memory 	    = replay_mem, \
-                         observing_policy   = tfrl.policy.UniformRandomPolicy(num_actions = env.action_space.n),\
+                         burnin_policy = tfrl.policy.UniformRandomPolicy(num_actions = env.action_space.n),\
+                         observing_policy   = tfrl.policy.GreedyEpsilonPolicy(0.05),\
                          testing_policy     = tfrl.policy.GreedyEpsilonPolicy(0.05), \
-                         training_policy    = tfrl.policy.LinearDecayGreedyEpsilonPolicy(1, 0.1, ANNEAL_NUM_STEPS), \
+                         training_policy    = tfrl.policy.LinearDecayGreedyEpsilonPolicy(0.5, 0.05, ANNEAL_NUM_STEPS), \
                          gamma		    = GAMMA, \
                          alpha 		    = ALPHA, \
                          target_update_freq = TARGET_FREQ, \
