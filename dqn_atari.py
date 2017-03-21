@@ -25,7 +25,7 @@ IMG_ROWS , IMG_COLS = 84, 84
 WINDOW = 4
 TARGET_FREQ = 1000
 NUM_BURN_IN = 1200
-TRAIN_FREQ=4
+TRAIN_FREQ=1000
 MOMENTUM = 0.8
 MAX_NUM_ITERATIONS=5000000
 ANNEAL_NUM_STEPS = 100
@@ -89,14 +89,14 @@ def main():  # noqa: D103
    
     env = gym.make('Enduro-v0')
     
-    ddqn_agent = DDQNAgent(model_name 	    = 'DQN2layer', \
+    ddqn_agent = DDQNAgent(network_type 	    = 'DEEP', \
 			 num_actions	    = env.action_space.n, \
                          preprocessors      = [atari_preproc, history_preproc, preproc], \
                          memory 	    = replay_mem, \
                          burnin_policy = tfrl.policy.UniformRandomPolicy(num_actions = env.action_space.n),\
-                         observing_policy   = tfrl.policy.GreedyEpsilonPolicy(0.05),\
+                         observing_policy   = tfrl.policy.GreedyPolicy(),\
                          testing_policy     = tfrl.policy.GreedyEpsilonPolicy(0.05), \
-                         training_policy    = tfrl.policy.LinearDecayGreedyEpsilonPolicy(0.5, 0.05, ANNEAL_NUM_STEPS), \
+                         training_policy    = tfrl.policy.LinearDecayGreedyEpsilonPolicy(1.0, 0.05, ANNEAL_NUM_STEPS), \
                          gamma		    = GAMMA, \
                          alpha 		    = ALPHA, \
                          target_update_freq = TARGET_FREQ, \
