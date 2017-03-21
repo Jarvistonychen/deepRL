@@ -273,14 +273,14 @@ class QNAgent:
           How long a single episode should last before the agent
           resets. Can help exploration.
         """
-        while self.num_update < num_iterations*self.train_freq:
+        while self.num_update < num_iterations
             
             env.reset()
             self.atari_proc.reset()
             self.hist_proc.reset()
             self.memory.clear()
             
-            for step in range(max_episode_length*self.train_freq):
+            for step in range(max_episode_length):
                 
                 if step > 0:
                     state_history = nextstate_history
@@ -309,11 +309,12 @@ class QNAgent:
                 nextstate, reward, is_terminal, debug_info = env.step(action)
                 nextstate_history = self.preproc.get_history_for_memory(nextstate)
                 
+                self.num_update += 1
+                
                 if is_terminal:
                     break
-        
-                #env.render()
-                self.num_update += 1
+    
+
 
     def eval_avg_q(self):
         return np.mean(np.amax(self.calc_q_values([self.rand_states, self.rand_states_mask]), axis=1))
