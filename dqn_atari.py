@@ -10,6 +10,7 @@ import numpy as np
 
 import deeprl_hw2 as tfrl
 from deeprl_hw2.dqn import DQNAgent
+from deeprl_hw2.dqn import DDQNAgent
 from deeprl_hw2.objectives import mean_huber_loss
 
 import gym
@@ -88,7 +89,7 @@ def main():  # noqa: D103
    
     env = gym.make('Enduro-v0')
     
-    dqn_agent = DQNAgent(model_name 	    = 'LINEAR', \
+    ddqn_agent = DDQNAgent(model_name 	    = 'DQN2layer', \
 			 num_actions	    = env.action_space.n, \
                          preprocessors      = [atari_preproc, history_preproc, preproc], \
                          memory 	    = replay_mem, \
@@ -97,15 +98,14 @@ def main():  # noqa: D103
                          training_policy    = tfrl.policy.LinearDecayGreedyEpsilonPolicy(1, 0.1, ANNEAL_NUM_STEPS), \
                          gamma		    = GAMMA, \
                          alpha 		    = ALPHA, \
-                         momentum 	    = MOMENTUM, \
                          target_update_freq = TARGET_FREQ, \
                          num_burn_in 	    = NUM_BURN_IN, \
                          train_freq 	    = TRAIN_FREQ, \
                          batch_size 	    = BATCH_SIZE )
 
-    dqn_agent.compile(optimizer='Adam', loss_func='mse')
+    ddqn_agent.compile(optimizer='Adam', loss_func=mean_huber_loss)
 
-    dqn_agent.fit(env, num_iterations=MAX_NUM_ITERATIONS, max_episode_length=10000)
+    ddqn_agent.fit(env, num_iterations=MAX_NUM_ITERATIONS, max_episode_length=10000)
     
 
 
