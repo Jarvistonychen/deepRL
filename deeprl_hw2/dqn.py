@@ -23,6 +23,7 @@ LEARNING_RATE = 0.01
 MOMENTUM = 0.8
 NUM_RAND_STATE = 1000
 UPDATE_OFFSET = 100
+EVALUATION_FREQUENCY=10000
 
 
 class QNAgent:
@@ -78,6 +79,7 @@ class QNAgent:
                  target_update_freq=TARGET_QNET_RESET_INTERVAL,
                  num_burn_in=SAMPLES_BURN_IN,
                  train_freq=TRAINING_FREQUENCY,
+                 eval_freq=EVALUATION_FREQUENCY,
                  batch_size=BATCH_SIZE):
 
 
@@ -99,6 +101,7 @@ class QNAgent:
         self.target_update_freq = target_update_freq
         self.num_burn_in 	= num_burn_in
         self.train_freq		= train_freq
+        self.eval_freq      = eval_freq
         self.batch_size		= batch_size
         self.num_update 	= 0
         self.alpha 		= alpha
@@ -443,9 +446,10 @@ class DQNAgent(QNAgent):
                  target_update_freq=TARGET_QNET_RESET_INTERVAL,
                  num_burn_in=SAMPLES_BURN_IN,
                  train_freq=TRAINING_FREQUENCY,
+                 eval_freq=EVALUATION_FREQUENCY,
                  batch_size=BATCH_SIZE):
 
-        QNAgent.__init__(self,network_type,num_actions,preprocessors,memory,burnin_policy,observing_policy,training_policy,testing_policy,gamma,alpha,target_update_freq,num_burn_in,train_freq,batch_size)
+        QNAgent.__init__(self,network_type,num_actions,preprocessors,memory,burnin_policy,observing_policy,training_policy,testing_policy,gamma,alpha,target_update_freq,num_burn_in,train_freq,eval_freq,batch_size)
 
         if network_type=='LINEAR':
                               self.qt_network  	= self.create_linear_model(window = WINDOW, \
@@ -466,7 +470,7 @@ class DQNAgent(QNAgent):
                               
                               self.q_network   	= self.create_deep_model(window = WINDOW, \
                                                                            input_shape = (IMG_ROWS, IMG_COLS), \
-                                                                           num_actions = self.num_actionS
+                                                                           num_actions = self.num_actions
                                                                         )
 
     def compile(self, optimizer, loss_func):
@@ -608,9 +612,10 @@ class DDQNAgent(QNAgent):
                  target_update_freq=TARGET_QNET_RESET_INTERVAL,
                  num_burn_in=SAMPLES_BURN_IN,
                  train_freq=TRAINING_FREQUENCY,
+                 eval_freq=EVALUATION_FREQUENCY,
                  batch_size=BATCH_SIZE):
         
-        QNAgent.__init__(self,network_type,num_actions,preprocessors,memory,burnin_policy, observing_policy,training_policy,testing_policy,gamma,alpha,target_update_freq,num_burn_in,train_freq,batch_size)
+        QNAgent.__init__(self,network_type,num_actions,preprocessors,memory,burnin_policy, observing_policy,training_policy,testing_policy,gamma,alpha,target_update_freq,num_burn_in,train_freq,eval_freq,batch_size)
         
         if network_type=='LINEAR':
             self.qt_network  	= self.create_linear_model(window = WINDOW, \
@@ -682,9 +687,9 @@ class DDQNAgent(QNAgent):
             self.save_data()
             self.mean_q.append(self.eval_avg_q())
 
-            if self.num_update % self.target_update_freq == 0:
-                print "======================= Sync target and source network ============================="
-                tfrl.utils.get_hard_target_model_updates(self.qt_network, self.q_network)
+        if self.num_update % self.target_update_freq == 0:
+            print "======================= Sync target and source network ============================="
+            tfrl.utils.get_hard_target_model_updates(self.qt_network, self.q_network)
 
     def save_data(self):
         plt.plot(self.mean_q)
