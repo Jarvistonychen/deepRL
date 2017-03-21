@@ -24,7 +24,8 @@ MOMENTUM = 0.8
 NUM_RAND_STATE = 1000
 UPDATE_OFFSET = 100
 
-class DQNAgent:
+
+class QNAgent:
     
     """Class implementing DQN.
 
@@ -73,7 +74,6 @@ class DQNAgent:
                  training_policy,
                  gamma=GAMMA,
                  alpha=ALPHA,
-                 momentum=MOMENTUM,
                  target_update_freq=TARGET_QNET_RESET_INTERVAL,
                  num_burn_in=SAMPLES_BURN_IN,
                  train_freq=TRAINING_FREQUENCY,
@@ -85,17 +85,17 @@ class DQNAgent:
         self.atari_proc  	= preprocessors[0]
         self.hist_proc  	= preprocessors[1]
         self.preproc     	= preprocessors[2]
-        self.q_network   	= self.create_model(window = WINDOW, \
-						    input_shape = (IMG_ROWS, IMG_COLS), \
-						    num_actions = self.num_actions, \
-						    model_name	= self.model_name)
-        self.qt_network  	= self.create_model(window = WINDOW, \
-						    input_shape = (IMG_ROWS, IMG_COLS), \
-						    num_actions = self.num_actions, \
-						    model_name	= self.model_name)
+            #self.q_network   	= self.create_model(window = WINDOW, \
+			#			    input_shape = (IMG_ROWS, IMG_COLS), \
+			#			    num_actions = self.num_actions, \
+			#			    model_name	= self.model_name)
+            #self.qt_network  	= self.create_model(window = WINDOW, \
+			#			    input_shape = (IMG_ROWS, IMG_COLS), \
+			#			    num_actions = self.num_actions, \
+			#			    model_name	= self.model_name)
         print 'model summary'
-        print self.q_network.summary()
-        print self.q_network.get_config()
+        #print self.q_network.summary()
+        #print self.q_network.get_config()
 
         self.memory	 	= memory
         self.observing_policy 	= observing_policy
@@ -109,7 +109,6 @@ class DQNAgent:
         self.batch_size		= batch_size
         self.num_update 	= 0
         self.alpha 		= alpha
-        self.momentum 		= momentum
         self.train_loss		= []
         self.mean_q		= []
         self.rand_states 	= np.zeros((NUM_RAND_STATE, 4, 84, 84))
@@ -150,9 +149,9 @@ class DQNAgent:
             a1 = Input(shape=(window,input_shape[0],input_shape[1]))
             a2 = Input(shape=(num_actions,))
             b = Conv2D(16, (8, 8), strides=4, padding='same',use_bias=True,activation='relu', data_format='channels_first')(a1)
-	    b = BatchNormalization(axis=1)(b)
+            b = BatchNormalization(axis=1)(b)
             c = Conv2D(32, (4, 4), strides=2, padding='same',use_bias=True,activation='relu', data_format='channels_first')(b)
-	    c = BatchNormalization(axis=1)(c)
+            c = BatchNormalization(axis=1)(c)
             d = Flatten()(c)
             e = Dense(256, activation='relu')(d)
 	    #e = GaussianDropout(e)
@@ -190,9 +189,7 @@ class DQNAgent:
         optimizer.
         """
 
-        if optimizer == 'Adam':
-                opti = optimizers.Adam(lr=self.alpha)
-        self.q_network.compile(loss=loss_func, optimizer = opti)
+        raise NotImplementedError('This method should be overriden.')
 
     def calc_q_values(self, state):
         """Given a state (or batch of states) calculate the Q-values.
@@ -243,55 +240,6 @@ class DQNAgent:
                 else:
                     return self.testing_policy.select_action()
 
-    
-    def update_policy(self):
-        """Update your policy.
-
-        Behavior may differ based on what stage of training your
-        in. If you're in training mode then you should check if you
-        should update your network parameters based on the current
-        step and the value you set for train_freq.
-
-        Inside, you'll want to sample a minibatch, calculate the
-        target values, update your network, and then update your
-        target values.
-
-        You might want to return the loss and other metrics as an
-        output. They can help you monitor how training is going.
-        """
-        if self.num_update % self.train_freq == 0:
-            # generate batch samples for CNN
-            mem_samples = self.memory.sample(self.batch_size)
-            mem_samples = self.atari_proc.process_batch(mem_samples)
-            input_state_batch=np.zeros((self.batch_size, 4, 84, 84))
-            input_nextstate_batch=np.zeros((self.batch_size, 4, 84, 84))
-            input_mask_batch=np.zeros((self.batch_size,self.num_actions))
-            output_target_batch=np.zeros((self.batch_size,self.num_actions))
-            for ind in range(self.batch_size):
-                input_state_batch[ind,:,:,:] = mem_samples[ind].state
-                input_nextstate_batch[ind,:,:,:] = mem_samples[ind].next_state
-                input_mask_batch[ind, mem_samples[ind].action] = 1
-
-            target_q = self.qt_network.predict([input_nextstate_batch, self.input_dummymask_batch],batch_size=1)
-            best_target_q = np.amax(target_q, axis=1)
-            #print 'best Q values of batch'
-            #print best_target_q
-            for ind in range(self.batch_size):
-                output_target_batch[ind, mem_samples[ind].action] = mem_samples[ind].reward + self.gamma*best_target_q[ind]
-
-            temp_loss = self.q_network.train_on_batch(x=[input_state_batch, input_mask_batch], y=output_target_batch)
-        
-        if self.num_update % (self.train_freq * 25) == 0:
-            self.train_loss.append(temp_loss)
-
-        self.save_data(freq=self.target_update_freq)
-
-        if self.num_update % self.target_update_freq == 0:
-            self.mean_q.append(self.eval_avg_q())
-            print "======================= Sync target and source network ============================="
-            tfrl.utils.get_hard_target_model_updates(self.qt_network, self.q_network)
-            #get_soft_target_model_updates(self.qt_network, self.q_network)
-
     def fit(self, env, num_iterations, max_episode_length=None):
         """Fit your model to the provided environment.
 
@@ -318,27 +266,32 @@ class DQNAgent:
           resets. Can help exploration.
         """
         while self.num_update < num_iterations*self.train_freq:
+            
             env.reset()
             self.atari_proc.reset()
             self.hist_proc.reset()
             self.memory.clear()
+            
             for step in range(max_episode_length*self.train_freq):
+                
                 if step > 0:
                     state_history = nextstate_history
+                
                 if step > self.num_burn_in:
                     action = self.select_action(policy='training',state=[state_history, self.input_dummymask])
                 else: # uniform before momery initialized
                     action = self.select_action(policy='observing')
-		    if self.num_update >= UPDATE_OFFSET and self.num_update < NUM_RAND_STATE + UPDATE_OFFSET:
-		    	self.rand_states[self.num_update-UPDATE_OFFSET,:,:,:] = state_history    
+                    if self.num_update >= UPDATE_OFFSET and self.num_update < NUM_RAND_STATE + UPDATE_OFFSET:
+                        self.rand_states[self.num_update-UPDATE_OFFSET,:,:,:] = state_history
+                
                 nextstate, reward, is_terminal, debug_info = env.step(action)
                 if is_terminal:
                     break
 
                 nextstate_history = self.preproc.get_history_for_memory(nextstate)
                 if step > 0:
-		    if reward >0: 
-		    	print (reward)
+                    if reward >0:
+                        print (reward)
                     self.memory.append(state_history, \
                                        action, \
                                        self.atari_proc.process_reward(reward), \
@@ -349,25 +302,10 @@ class DQNAgent:
                     if self.num_update == self.num_burn_in:
                         print '=========== Memory burn in ({0}) finished =========='.format(self.num_burn_in)
                     self.update_policy()
+                    
                 env.render()
                 state = nextstate
                 self.num_update += 1
-
-
-    def save_data(self,freq):
-        if self.num_update % freq == 0:
-            plt.plot(self.mean_q)
-            plt.savefig('mean_q_{0}.jpg'.format(self.model_name))
-            plt.close()
-            plt.plot(self.train_loss)
-            plt.savefig('train_loss_{0}.jpg'.format(self.model_name))
-            plt.close()
-            with open('mean_q_{0}.data'.format(self.model_name),'w') as f:
-                pickle.dump(self.mean_q,f)
-            with open('train_loss_{0}.data'.format(self.model_name),'w') as f:
-                pickle.dump(self.train_loss,f)
-            self.q_network.save_weights('source_{0}.weight'.format(self.model_name))
-            self.qt_network.save_weights('target_{0}.weight'.format(self.model_name))
 
     def eval_avg_q(self):
         return np.mean(np.amax(self.calc_q_values([self.rand_states, self.rand_states_mask]), axis=1))
@@ -402,3 +340,343 @@ class DQNAgent:
             nextstate_history = self.preproc.get_history_for_network(nextstate)
             env.render()
             state = nextstate
+
+    def update_policy(self):
+        """Update your policy.
+            
+            Behavior may differ based on what stage of training your
+            in. If you're in training mode then you should check if you
+            should update your network parameters based on the current
+            step and the value you set for train_freq.
+            
+            Inside, you'll want to sample a minibatch, calculate the
+            target values, update your network, and then update your
+            target values.
+            
+            You might want to return the loss and other metrics as an
+            output. They can help you monitor how training is going.
+            """
+
+        raise NotImplementedError('This method should be overriden.')
+
+    def save_data(self):
+        """Update your policy.
+        
+            Behavior may differ based on what stage of training your
+            in. If you're in training mode then you should check if you
+            should update your network parameters based on the current
+            step and the value you set for train_freq.
+        
+            Inside, you'll want to sample a minibatch, calculate the
+            target values, update your network, and then update your
+            target values.
+        
+            You might want to return the loss and other metrics as an
+            output. They can help you monitor how training is going.
+        """
+        raise NotImplementedError('This method should be overriden.')
+
+
+class DQNAgent(QNAgent):
+    
+    """Class implementing DQN.
+        
+        This is a basic outline of the functions/parameters you will need
+        in order to implement the DQNAgnet. This is just to get you
+        started. You may need to tweak the parameters, add new ones, etc.
+        
+        Feel free to change the functions and funciton parameters that the
+        class provides.
+        
+        We have provided docstrings to go along with our suggested API.
+        
+        Parameters
+        ----------
+        q_network: keras.models.Model
+        Your Q-network model.
+        preprocessor: deeprl_hw2.core.Preprocessor
+        The preprocessor class. See the associated classes for more
+        details.
+        memory: deeprl_hw2.core.Memory
+        Your replay memory.
+        gamma: float
+        Discount factor.
+        target_update_freq: float
+        Frequency to update the target network. You can either provide a
+        number representing a soft target update (see utils.py) or a
+        hard target update (see utils.py and Atari paper.)
+        num_burn_in: int
+        Before you begin updating the Q-network your replay memory has
+        to be filled up with some number of samples. This number says
+        how many.
+        train_freq: int
+        How often you actually update your Q-Network. Sometimes
+        stability is improved if you collect a couple samples for your
+        replay memory, for every Q-network update that you run.
+        batch_size: int
+        How many samples in each minibatch.
+        """
+    def __init__(self,
+                 model_name,
+                 num_actions,
+                 preprocessors,
+                 memory,
+                 observing_policy,
+                 testing_policy,
+                 training_policy,
+                 gamma=GAMMA,
+                 alpha=ALPHA,
+                 target_update_freq=TARGET_QNET_RESET_INTERVAL,
+                 num_burn_in=SAMPLES_BURN_IN,
+                 train_freq=TRAINING_FREQUENCY,
+                 batch_size=BATCH_SIZE):
+
+        QNAgent.__init__(self,model_name,num_actions,preprocessors,memory,observing_policy,testing_policy,training_policy,gamma,alpha,target_update_freq,num_burn_in,train_freq,batch_size)
+
+        self.qt_network  	= self.create_model(window = WINDOW, \
+                                            input_shape = (IMG_ROWS, IMG_COLS), \
+                                            num_actions = self.num_actions, \
+                                            model_name	= self.model_name)
+    
+        self.q_network   	= self.create_model(window = WINDOW, \
+                                            input_shape = (IMG_ROWS, IMG_COLS), \
+                                            num_actions = self.num_actions, \
+                                            model_name	= self.model_name)
+
+    def compile(self, optimizer, loss_func):
+        """Setup all of the TF graph variables/ops.
+        
+            This is inspired by the compile method on the
+            keras.models.Model class.
+        
+            This is a good place to create the target network, setup your
+            loss function and any placeholders you might need.
+        
+            You should use the mean_huber_loss function as your
+            loss_function. You can also experiment with MSE and other
+            losses.
+        
+            The optimizer can be whatever class you want. We used the
+            keras.optimizers.Optimizer class. Specifically the Adam
+            optimizer.
+        """
+            
+        if optimizer == 'Adam':
+            opti = optimizers.Adam(lr=self.alpha)
+            self.q_network.compile(loss=loss_func, optimizer = opti)
+
+    def update_policy(self):
+        """Update your policy.
+            
+            Behavior may differ based on what stage of training your
+            in. If you're in training mode then you should check if you
+            should update your network parameters based on the current
+            step and the value you set for train_freq.
+            
+            Inside, you'll want to sample a minibatch, calculate the
+            target values, update your network, and then update your
+            target values.
+            
+            You might want to return the loss and other metrics as an
+            output. They can help you monitor how training is going.
+        """
+                
+        if self.num_update % self.train_freq == 0:
+            
+            # generate batch samples for CNN
+            mem_samples = self.memory.sample(self.batch_size)
+            mem_samples = self.atari_proc.process_batch(mem_samples)
+            input_state_batch=np.zeros((self.batch_size, 4, 84, 84))
+            input_nextstate_batch=np.zeros((self.batch_size, 4, 84, 84))
+            input_mask_batch=np.zeros((self.batch_size,self.num_actions))
+            output_target_batch=np.zeros((self.batch_size,self.num_actions))
+            
+            for ind in range(self.batch_size):
+                input_state_batch[ind,:,:,:] = mem_samples[ind].state
+                input_nextstate_batch[ind,:,:,:] = mem_samples[ind].next_state
+                input_mask_batch[ind, mem_samples[ind].action] = 1
+        
+            target_q = self.qt_network.predict([input_nextstate_batch, self.input_dummymask_batch],batch_size=1)
+            best_target_q = np.amax(target_q, axis=1)
+            #print 'best Q values of batch'
+            #print best_target_q
+            for ind in range(self.batch_size):
+                output_target_batch[ind, mem_samples[ind].action] = mem_samples[ind].reward + self.gamma*best_target_q[ind]
+        
+            temp_loss = self.q_network.train_on_batch(x=[input_state_batch, input_mask_batch], y=output_target_batch)
+
+            self.train_loss.append(temp_loss)
+            self.save_data(freq=self.target_update_freq)
+            self.mean_q.append(self.eval_avg_q())
+    
+        if self.num_update % self.target_update_freq == 0:
+            print "======================= Sync target and source network ============================="
+            tfrl.utils.get_hard_target_model_updates(self.qt_network, self.q_network)
+            #get_soft_target_model_updates(self.qt_network, self.q_network)
+
+    def save_data(self):
+        plt.plot(self.mean_q)
+        plt.savefig('dqn_mean_q_{0}.jpg'.format(self.model_name))
+        plt.close()
+        plt.plot(self.train_loss)
+        plt.savefig('dqn_train_loss_{0}.jpg'.format(self.model_name))
+        plt.close()
+        with open('dqn_mean_q_{0}.data'.format(self.model_name),'w') as f:
+            pickle.dump(self.mean_q,f)
+        with open('dqn_train_loss_{0}.data'.format(self.model_name),'w') as f:
+            pickle.dump(self.train_loss,f)
+        self.q_network.save_weights('dqn_source_{0}.weight'.format(self.model_name))
+        self.qt_network.save_weights('dqn_target_{0}.weight'.format(self.model_name))
+
+
+class DDQNAgent(QNAgent):
+    
+    """Class implementing DQN.
+        
+        This is a basic outline of the functions/parameters you will need
+        in order to implement the DQNAgnet. This is just to get you
+        started. You may need to tweak the parameters, add new ones, etc.
+        
+        Feel free to change the functions and funciton parameters that the
+        class provides.
+        
+        We have provided docstrings to go along with our suggested API.
+        
+        Parameters
+        ----------
+        q_network: keras.models.Model
+        Your Q-network model.
+        preprocessor: deeprl_hw2.core.Preprocessor
+        The preprocessor class. See the associated classes for more
+        details.
+        memory: deeprl_hw2.core.Memory
+        Your replay memory.
+        gamma: float
+        Discount factor.
+        target_update_freq: float
+        Frequency to update the target network. You can either provide a
+        number representing a soft target update (see utils.py) or a
+        hard target update (see utils.py and Atari paper.)
+        num_burn_in: int
+        Before you begin updating the Q-network your replay memory has
+        to be filled up with some number of samples. This number says
+        how many.
+        train_freq: int
+        How often you actually update your Q-Network. Sometimes
+        stability is improved if you collect a couple samples for your
+        replay memory, for every Q-network update that you run.
+        batch_size: int
+        How many samples in each minibatch.
+        """
+    def __init__(self,
+                 model_name,
+                 num_actions,
+                 preprocessors,
+                 memory,
+                 observing_policy,
+                 testing_policy,
+                 training_policy,
+                 gamma=GAMMA,
+                 alpha=ALPHA,
+                 target_update_freq=TARGET_QNET_RESET_INTERVAL,
+                 num_burn_in=SAMPLES_BURN_IN,
+                 train_freq=TRAINING_FREQUENCY,
+                 batch_size=BATCH_SIZE):
+        
+        QNAgent.__init__(self,model_name,num_actions,preprocessors,memory,observing_policy,testing_policy,training_policy,gamma,alpha,target_update_freq,num_burn_in,train_freq,batch_size)
+        
+        self.q1_network   	= self.create_model(window = WINDOW, \
+                                                input_shape = (IMG_ROWS, IMG_COLS), \
+                                                num_actions = self.num_actions, \
+                                                model_name	= self.model_name)
+
+        self.q2_network  	= self.create_model(window = WINDOW, \
+                                                input_shape = (IMG_ROWS, IMG_COLS), \
+                                                num_actions = self.num_actions, \
+                                                model_name	= self.model_name)
+        
+        self.q_network = self.q1_network
+        
+    
+    def update_policy(self):
+        """Update your policy.
+            
+            Behavior may differ based on what stage of training your
+            in. If you're in training mode then you should check if you
+            should update your network parameters based on the current
+            step and the value you set for train_freq.
+            
+            Inside, you'll want to sample a minibatch, calculate the
+            target values, update your network, and then update your
+            target values.
+            
+            You might want to return the loss and other metrics as an
+            output. They can help you monitor how training is going.
+            """
+        
+        if self.num_update % self.train_freq == 0:
+            # generate batch samples for CNN
+            mem_samples = self.memory.sample(self.batch_size)
+            mem_samples = self.atari_proc.process_batch(mem_samples)
+            input_state_batch=np.zeros((self.batch_size, 4, 84, 84))
+            input_nextstate_batch=np.zeros((self.batch_size, 4, 84, 84))
+            input_mask_batch=np.zeros((self.batch_size,self.num_actions))
+            output_target_batch=np.zeros((self.batch_size,self.num_actions))
+            for ind in range(self.batch_size):
+                input_state_batch[ind,:,:,:] = mem_samples[ind].state
+                input_nextstate_batch[ind,:,:,:] = mem_samples[ind].next_state
+                input_mask_batch[ind, mem_samples[ind].action] = 1
+        
+            update_network=np.random.binomial(1,0.5)
+            if(update_network==0):
+                aux_q = self.q1_network.predict([input_nextstate_batch, self.input_dummymask_batch],batch_size=1)
+                best_actions=np.argmax(aux_q,axis=1)
+                target_q = self.q2_network.predict([input_nextstate_batch, self.input_dummymask_batch],batch_size=1)
+                best_target_q = target_q[range(self.batch_size), best_actions]
+            else:
+                aux_q = self.q2_network.predict([input_nextstate_batch, self.input_dummymask_batch],batch_size=1)
+                best_actions=np.argmax(aux_q,axis=1)
+                target_q = self.q1_network.predict([input_nextstate_batch, self.input_dummymask_batch],batch_size=1)
+                best_target_q = target_q[range(self.batch_size), best_actions]
+
+
+            #print 'best Q values of batch'
+            #print best_target_q
+            for ind in range(self.batch_size):
+                output_target_batch[ind, mem_samples[ind].action] = mem_samples[ind].reward + self.gamma*best_target_q[ind]
+        
+        
+            if(update_network==0):
+                temp_loss = self.q1_network.train_on_batch(x=[input_state_batch, input_mask_batch], y=output_target_batch)
+                self.q_network = self.q1_network
+            else:
+                temp_loss = self.q2_network.train_on_batch(x=[input_state_batch, input_mask_batch], y=output_target_batch)
+                self.q_network = self.q2_network
+            
+        
+            self.train_loss.append(temp_loss)
+            self.mean_q.append(self.eval_avg_q())
+            self.save_data()
+        
+    #get_soft_target_model_updates(self.qt_network, self.q_network)
+
+    def save_data(self):
+        plt.plot(self.mean_q)
+        plt.savefig('ddqn_mean_q_{0}.jpg'.format(self.model_name))
+        plt.close()
+        plt.plot(self.train_loss)
+        plt.savefig('ddqn_train_loss_{0}.jpg'.format(self.model_name))
+        plt.close()
+        with open('ddqn_mean_q_{0}.data'.format(self.model_name),'w') as f:
+            pickle.dump(self.mean_q,f)
+        with open('ddqn_train_loss_{0}.data'.format(self.model_name),'w') as f:
+            pickle.dump(self.train_loss,f)
+        self.q1_network.save_weights('ddqn_source_{0}.weight'.format(self.model_name))
+        self.q2_network.save_weights('ddqn_source_{0}.weight'.format(self.model_name))
+        self.q_network.save_weights('ddqn_target_{0}.weight'.format(self.model_name))
+            
+    def compile(self, optimizer, loss_func):
+        if optimizer == 'Adam':
+            opti = optimizers.Adam(lr=self.alpha)
+            self.q1_network.compile(loss=loss_func, optimizer = opti)
+            self.q2_network.compile(loss=loss_func, optimizer = opti)
