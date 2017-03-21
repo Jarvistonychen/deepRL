@@ -69,9 +69,10 @@ class QNAgent:
                  num_actions,
                  preprocessors,
                  memory,
+                 burnin_policy,
                  observing_policy,
-                 testing_policy,
                  training_policy,
+                 testing_policy,
                  gamma=GAMMA,
                  alpha=ALPHA,
                  target_update_freq=TARGET_QNET_RESET_INTERVAL,
@@ -91,6 +92,7 @@ class QNAgent:
 
         self.memory	 	= memory
         self.observing_policy 	= observing_policy
+        self.burnin_policy      = burnin_policy
         self.testing_policy 	= testing_policy
         self.training_policy 	= training_policy
         self.gamma 		= gamma
@@ -229,6 +231,11 @@ class QNAgent:
                     return self.testing_policy.select_action(self.calc_q_values(kwargs['state']))
                 else:
                     return self.testing_policy.select_action()
+        elif policy == 'burnin':
+                if 'state' in kwargs:
+                    return self.burnin_policy.select_action(self.calc_q_values(kwargs['state']))
+                else:
+                    return self.burnin_policy.select_action()
 
     def fit(self, env, num_iterations, max_episode_length=None):
         """Fit your model to the provided environment.
@@ -273,13 +280,17 @@ class QNAgent:
                                         is_terminal)
                 
                 if step > self.num_burn_in:
-                    action = self.select_action(policy='training',state=[state_history, self.input_dummymask])
+                    if self.num_update % self.train_freq == 0:
+                        action = self.select_action(policy='training',state=[state_history, self.input_dummymask])
+                    else:
+                        action = self.select_action(policy='observing',state=[state_history, self.input_dummymask])
                     self.update_policy()
+                        
                 else:
                     if self.num_update == self.num_burn_in:
                         print '=========== Memory burn in ({0}) finished =========='.format(self.num_burn_in)
                     
-                    action = self.select_action(policy='observing')
+                    action = self.select_action(policy='burnin')
                     
                     if self.num_update >= UPDATE_OFFSET and self.num_update < NUM_RAND_STATE + UPDATE_OFFSET:
                         self.rand_states[self.num_update-UPDATE_OFFSET,:,:,:] = state_history
@@ -418,7 +429,7 @@ class DQNAgent(QNAgent):
                  train_freq=TRAINING_FREQUENCY,
                  batch_size=BATCH_SIZE):
 
-        QNAgent.__init__(self,model_name,num_actions,preprocessors,memory,observing_policy,testing_policy,training_policy,gamma,alpha,target_update_freq,num_burn_in,train_freq,batch_size)
+        QNAgent.__init__(self,model_name,num_actions,preprocessors,memory,burnin_policy,observing_policy,training_policy,testing_policy,gamma,alpha,target_update_freq,num_burn_in,train_freq,batch_size)
 
         self.qt_network  	= self.create_model(window = WINDOW, \
                                             input_shape = (IMG_ROWS, IMG_COLS), \
@@ -560,9 +571,10 @@ class DDQNAgent(QNAgent):
                  num_actions,
                  preprocessors,
                  memory,
+                 burnin_policy,
                  observing_policy,
-                 testing_policy,
                  training_policy,
+                 testing_policy,
                  gamma=GAMMA,
                  alpha=ALPHA,
                  target_update_freq=TARGET_QNET_RESET_INTERVAL,
@@ -570,7 +582,7 @@ class DDQNAgent(QNAgent):
                  train_freq=TRAINING_FREQUENCY,
                  batch_size=BATCH_SIZE):
         
-        QNAgent.__init__(self,model_name,num_actions,preprocessors,memory,observing_policy,testing_policy,training_policy,gamma,alpha,target_update_freq,num_burn_in,train_freq,batch_size)
+        QNAgent.__init__(self,model_name,num_actions,preprocessors,memory,burnin_policy, observing_policy,training_policy,testing_policy,gamma,alpha,target_update_freq,num_burn_in,train_freq,batch_size)
         
         self.q1_network   	= self.create_model(window = WINDOW, \
                                                 input_shape = (IMG_ROWS, IMG_COLS), \
