@@ -274,35 +274,56 @@ class QNAgent:
           How long a single episode should last before the agent
           resets. Can help exploration.
         """
+        
+        env.reset()
+        self.hist_proc.reset()
+        for step in  range(self.num_burn_in):
+            
+            if step > 0:
+                state_history = nextstate_history
+                self.memory.append(state_history, \
+                                   action, \
+                                   self.atari_proc.process_reward(reward), \
+                                   nextstate_history, \
+                                   is_terminal)
+                               
+            action = self.select_action(policy='burnin')
+            nextstate, reward, is_terminal, debug_info = env.step(action)
+            nextstate_history = self.preproc.get_history_for_memory(nextstate)
+            self.num_samples += 1
+        
+        
+        print '=========== Memory burn in ({0}) finished =========='.format(self.num_burn_in)
+        
         while self.num_samples < num_iterations
             
             env.reset()
-            self.atari_proc.reset()
             self.hist_proc.reset()
-            self.memory.clear()
             
             for step in range(max_episode_length):
                 
                 if step > 0:
                     state_history = nextstate_history
+                if self.num_samples % self.train_freq == 0:
+                    action = self.select_action(policy='training',state=[state_history, self.input_dummymask])
+                else:
+                    action = self.select_action(policy='observing',state=[state_history, self.input_dummymask])
+            
+                    
                     self.memory.append(state_history, \
                                         action, \
                                         self.atari_proc.process_reward(reward), \
                                         nextstate_history, \
                                         is_terminal)
                 
-                if step > self.num_burn_in:
-                    if self.num_samples % self.train_freq == 0:
-                        action = self.select_action(policy='training',state=[state_history, self.input_dummymask])
-                    else:
-                        action = self.select_action(policy='observing',state=[state_history, self.input_dummymask])
+      
+      
                     self.update_policy()
                         
-                else:
-                    if self.num_samples == self.num_burn_in:
-                        print '=========== Memory burn in ({0}) finished =========='.format(self.num_burn_in)
+
                     
-                    action = self.select_action(policy='burnin')
+                    
+                    
                     
                     if self.num_samples >= UPDATE_OFFSET and self.num_samples < NUM_RAND_STATE + UPDATE_OFFSET:
                         self.rand_states[self.num_samples-UPDATE_OFFSET,:,:,:] = state_history
