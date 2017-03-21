@@ -85,23 +85,14 @@ class QNAgent:
         self.atari_proc  	= preprocessors[0]
         self.hist_proc  	= preprocessors[1]
         self.preproc     	= preprocessors[2]
-            #self.q_network   	= self.create_model(window = WINDOW, \
-			#			    input_shape = (IMG_ROWS, IMG_COLS), \
-			#			    num_actions = self.num_actions, \
-			#			    model_name	= self.model_name)
-            #self.qt_network  	= self.create_model(window = WINDOW, \
-			#			    input_shape = (IMG_ROWS, IMG_COLS), \
-			#			    num_actions = self.num_actions, \
-			#			    model_name	= self.model_name)
+    
         print 'model summary'
-        #print self.q_network.summary()
-        #print self.q_network.get_config()
+   
 
         self.memory	 	= memory
         self.observing_policy 	= observing_policy
         self.testing_policy 	= testing_policy
         self.training_policy 	= training_policy
-        #self.training_policy.agent=self
         self.gamma 		= gamma
         self.target_update_freq = target_update_freq
         self.num_burn_in 	= num_burn_in
@@ -154,7 +145,6 @@ class QNAgent:
             c = BatchNormalization(axis=1)(c)
             d = Flatten()(c)
             e = Dense(256, activation='relu')(d)
-	    #e = GaussianDropout(e)
             f = Dense(num_actions)(e)
             h = Multiply()([f,a2])
             model = Model(inputs=[a1,a2], outputs=[h])  
@@ -276,33 +266,30 @@ class QNAgent:
                 
                 if step > 0:
                     state_history = nextstate_history
+                    self.memory.append(state_history, \
+                                        action, \
+                                        self.atari_proc.process_reward(reward), \
+                                        nextstate_history, \
+                                        is_terminal)
                 
                 if step > self.num_burn_in:
                     action = self.select_action(policy='training',state=[state_history, self.input_dummymask])
-                else: # uniform before momery initialized
+                    self.update_policy()
+                else:
+                    if self.num_update == self.num_burn_in:
+                        print '=========== Memory burn in ({0}) finished =========='.format(self.num_burn_in)
+                    
                     action = self.select_action(policy='observing')
+                    
                     if self.num_update >= UPDATE_OFFSET and self.num_update < NUM_RAND_STATE + UPDATE_OFFSET:
                         self.rand_states[self.num_update-UPDATE_OFFSET,:,:,:] = state_history
                 
                 nextstate, reward, is_terminal, debug_info = env.step(action)
+                nextstate_history = self.preproc.get_history_for_memory(nextstate)
+                
                 if is_terminal:
                     break
-
-                nextstate_history = self.preproc.get_history_for_memory(nextstate)
-                if step > 0:
-                    if reward >0:
-                        print (reward)
-                    self.memory.append(state_history, \
-                                       action, \
-                                       self.atari_proc.process_reward(reward), \
-                                       nextstate_history, \
-                                       is_terminal)
-                # train q_network
-                if step >= self.num_burn_in:
-                    if self.num_update == self.num_burn_in:
-                        print '=========== Memory burn in ({0}) finished =========='.format(self.num_burn_in)
-                    self.update_policy()
-                    
+        
                 env.render()
                 state = nextstate
                 self.num_update += 1
