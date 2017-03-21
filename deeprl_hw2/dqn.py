@@ -272,7 +272,7 @@ class DQNAgent:
                 input_nextstate_batch[ind,:,:,:] = mem_samples[ind].next_state
                 input_mask_batch[ind, mem_samples[ind].action] = 1
 
-            target_q = self.calc_q_values([input_nextstate_batch, self.input_dummymask_batch])
+            target_q = self.qt_network.predict([input_nextstate_batch, self.input_dummymask_batch],batch_size=1)
             best_target_q = np.amax(target_q, axis=1)
             #print 'best Q values of batch'
             #print best_target_q
@@ -284,7 +284,7 @@ class DQNAgent:
         if self.num_update % (self.train_freq * 25) == 0:
             self.train_loss.append(temp_loss)
 
-        self.save_data(freq=self.target_update_freq*10)
+        self.save_data(freq=self.target_update_freq)
 
         if self.num_update % self.target_update_freq == 0:
             self.mean_q.append(self.eval_avg_q())
