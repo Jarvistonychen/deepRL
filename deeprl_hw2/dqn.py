@@ -547,10 +547,12 @@ class DQNAgent(QNAgent):
             temp_loss = self.q_network.train_on_batch(x=[input_state_batch, input_mask_batch], y=output_target_batch)
 
             self.train_loss.append(temp_loss)
-            self.save_data()
-            self.mean_q.append(self.eval_avg_q())
     
+        if self.num_update % (self.target_update_freq/100) == 0:
+            self.mean_q.append(self.eval_avg_q())
+
         if self.num_update % self.target_update_freq == 0:
+            self.save_data()
             print "======================= Sync target and source network ============================="
             tfrl.utils.get_hard_target_model_updates(self.qt_network, self.q_network)
             #get_soft_target_model_updates(self.qt_network, self.q_network)
