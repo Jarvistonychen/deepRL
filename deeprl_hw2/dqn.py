@@ -102,7 +102,8 @@ class QNAgent:
         self.train_freq		= train_freq
         self.eval_freq      = eval_freq
         self.batch_size		= batch_size
-        self.num_update 	= 0
+        self.num_updates 	= 0
+        self.num_samples    = 0
         self.alpha 		= alpha
         self.train_loss		= []
         self.mean_q		= []
@@ -234,7 +235,7 @@ class QNAgent:
                     return self.observing_policy.select_action()
         elif policy == 'training':
                 if 'state' in kwargs:
-                    return self.training_policy.select_action(self.calc_q_values(kwargs['state']), self.num_update)
+                    return self.training_policy.select_action(self.calc_q_values(kwargs['state']), self.num_updates)
                 else:
                     return self.training_policy.select_action()
         elif policy == 'testing':
@@ -273,7 +274,7 @@ class QNAgent:
           How long a single episode should last before the agent
           resets. Can help exploration.
         """
-        while self.num_update < num_iterations
+        while self.num_samples < num_iterations
             
             env.reset()
             self.atari_proc.reset()
@@ -291,25 +292,25 @@ class QNAgent:
                                         is_terminal)
                 
                 if step > self.num_burn_in:
-                    if self.num_update % self.train_freq == 0:
+                    if self.num_samples % self.train_freq == 0:
                         action = self.select_action(policy='training',state=[state_history, self.input_dummymask])
                     else:
                         action = self.select_action(policy='observing',state=[state_history, self.input_dummymask])
                     self.update_policy()
                         
                 else:
-                    if self.num_update == self.num_burn_in:
+                    if self.num_samples == self.num_burn_in:
                         print '=========== Memory burn in ({0}) finished =========='.format(self.num_burn_in)
                     
                     action = self.select_action(policy='burnin')
                     
-                    if self.num_update >= UPDATE_OFFSET and self.num_update < NUM_RAND_STATE + UPDATE_OFFSET:
-                        self.rand_states[self.num_update-UPDATE_OFFSET,:,:,:] = state_history
+                    if self.num_samples >= UPDATE_OFFSET and self.num_samples < NUM_RAND_STATE + UPDATE_OFFSET:
+                        self.rand_states[self.num_samples-UPDATE_OFFSET,:,:,:] = state_history
                 
                 nextstate, reward, is_terminal, debug_info = env.step(action)
                 nextstate_history = self.preproc.get_history_for_memory(nextstate)
                 
-                self.num_update += 1
+                self.num_samples += 1
                 
                 if is_terminal:
                     break
@@ -523,7 +524,7 @@ class DQNAgent(QNAgent):
             output. They can help you monitor how training is going.
         """
                 
-        if self.num_update % self.train_freq == 0:
+        if self.num_samples % self.train_freq == 0:
             
             # generate batch samples for CNN
             mem_samples = self.memory.sample(self.batch_size)
@@ -549,10 +550,10 @@ class DQNAgent(QNAgent):
 
             self.train_loss.append(temp_loss)
     
-        if self.num_update % (self.target_update_freq/100) == 0:
+    #if self.num_updates % (self.target_update_freq/100) == 0:
             self.mean_q.append(self.eval_avg_q())
 
-        if self.num_update % self.target_update_freq == 0:
+        if self.num_updates % self.target_update_freq == 0:
             self.save_data()
             print "======================= Sync target and source network ============================="
             tfrl.utils.get_hard_target_model_updates(self.qt_network, self.q_network)
@@ -669,7 +670,7 @@ class DDQNAgent(QNAgent):
             output. They can help you monitor how training is going.
             """
             
-        if self.num_update % self.train_freq == 0:
+        if self.num_samples % self.train_freq == 0:
                 
             # generate batch samples for CNN
             mem_samples = self.memory.sample(self.batch_size)
@@ -701,7 +702,7 @@ class DDQNAgent(QNAgent):
             self.save_data()
             self.mean_q.append(self.eval_avg_q())
 
-        if self.num_update % self.target_update_freq == 0:
+        if self.num_updates % self.target_update_freq == 0:
             print "======================= Sync target and source network ============================="
             tfrl.utils.get_hard_target_model_updates(self.qt_network, self.q_network)
 
