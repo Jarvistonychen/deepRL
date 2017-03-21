@@ -419,9 +419,10 @@ class DQNAgent(QNAgent):
                  num_actions,
                  preprocessors,
                  memory,
+                 burnin_policy,
                  observing_policy,
-                 testing_policy,
                  training_policy,
+                 testing_policy,
                  gamma=GAMMA,
                  alpha=ALPHA,
                  target_update_freq=TARGET_QNET_RESET_INTERVAL,
@@ -504,7 +505,7 @@ class DQNAgent(QNAgent):
             temp_loss = self.q_network.train_on_batch(x=[input_state_batch, input_mask_batch], y=output_target_batch)
 
             self.train_loss.append(temp_loss)
-            self.save_data(freq=self.target_update_freq)
+            self.save_data()
             self.mean_q.append(self.eval_avg_q())
     
         if self.num_update % self.target_update_freq == 0:
