@@ -343,21 +343,21 @@ class QNAgent:
         total_reward = 0
         for episode_idx in range(num_episodes):
         
-            env.reset()
+            state=env.reset()
             self.hist_proc.reset()
+            state_history = self.preproc.get_history_for_network(nextstate)
             
             for step in range(max_episode_length):
                 
-                if step > 0:
-                    state_history = np.copy(nextstate_history)
-                    action = self.select_action(policy='testing',state=[state_history, self.input_dummymask])
+                action = self.select_action(policy='testing',state=[state_history, self.input_dummymask])
                 
-                nextstate, reward, is_terminal, debug_info = env.step(action)
+                state, reward, is_terminal, debug_info = env.step(action)
+                state_history = self.preproc.get_history_for_network(state)
+                
                 total_reward+=reward
+                
                 if is_terminal:
-                        break
-
-                nextstate_history = self.preproc.get_history_for_network(nextstate)
+                    break
 
         self.total_reward.append(total_reward)
 
@@ -537,9 +537,9 @@ class DQNAgent(QNAgent):
         self.num_updates += 1 
         # generate batch samples for CNN
         mem_samples = self.memory.sample(self.batch_size)
-	print 'sample 0',mem_samples[0].state[0,:,:], mem_samples[0].next_state[0,:,:]
-	print 'sample 15',mem_samples[15].state[0,:,:],mem_samples[15].next_state[0,:,:]
-	print 'sample 31',mem_samples[31].state[0,:,:],mem_samples[31].next_state[0,:,:]
+	#print 'sample 0',mem_samples[0].state[0,20:70,20:70], mem_samples[0].next_state[0,20:70,20:70]
+	#print 'sample 15',mem_samples[15].state[0,20:70,20:70],mem_samples[15].next_state[0,20:70,20:70]
+	#print 'sample 31',mem_samples[31].state[0,20:70,20:70],mem_samples[31].next_state[0,20:70,20:70]
         mem_samples = self.atari_proc.process_batch(mem_samples)
         input_state_batch=np.zeros((self.batch_size, 4, 84, 84))
         input_nextstate_batch=np.zeros((self.batch_size, 4, 84, 84))
@@ -738,3 +738,166 @@ class DDQNAgent(QNAgent):
             self.q_network.compile(loss=loss_func, optimizer = opti)
 
 
+class FTDQNAgent(QNAgent):
+    
+    """Class implementing DQN.
+        
+        This is a basic outline of the functions/parameters you will need
+        in order to implement the DQNAgnet. This is just to get you
+        started. You may need to tweak the parameters, add new ones, etc.
+        
+        Feel free to change the functions and funciton parameters that the
+        class provides.
+        
+        We have provided docstrings to go along with our suggested API.
+        
+        Parameters
+        ----------
+        q_network: keras.models.Model
+        Your Q-network model.
+        preprocessor: deeprl_hw2.core.Preprocessor
+        The preprocessor class. See the associated classes for more
+        details.
+        memory: deeprl_hw2.core.Memory
+        Your replay memory.
+        gamma: float
+        Discount factor.
+        target_update_freq: float
+        Frequency to update the target network. You can either provide a
+        number representing a soft target update (see utils.py) or a
+        hard target update (see utils.py and Atari paper.)
+        num_burn_in: int
+        Before you begin updating the Q-network your replay memory has
+        to be filled up with some number of samples. This number says
+        how many.
+        train_freq: int
+        How often you actually update your Q-Network. Sometimes
+        stability is improved if you collect a couple samples for your
+        replay memory, for every Q-network update that you run.
+        batch_size: int
+        How many samples in each minibatch.
+        """
+    def __init__(self,
+                 network_type,
+                 num_actions,
+                 preprocessors,
+                 memory,
+                 burnin_policy,
+                 observing_policy,
+                 training_policy,
+                 testing_policy,
+                 gamma=GAMMA,
+                 alpha=ALPHA,
+                 target_update_freq=TARGET_QNET_RESET_INTERVAL,
+                 num_burn_in=SAMPLES_BURN_IN,
+                 train_freq=TRAINING_FREQUENCY,
+                 eval_freq=EVALUATION_FREQUENCY,
+                 batch_size=BATCH_SIZE):
+        
+        QNAgent.__init__(self,network_type,num_actions,preprocessors,memory,burnin_policy,observing_policy,training_policy,testing_policy,gamma,alpha,target_update_freq,num_burn_in,train_freq,eval_freq,batch_size)
+        
+        
+        if network_type=='LINEAR':
+            self.qt_network  	= self.create_linear_model(window = WINDOW, \
+                                                           input_shape = (IMG_ROWS, IMG_COLS), \
+                                                           num_actions = self.num_actions, \
+                                                           )
+                
+            self.q_network   	= self.create_linear_model(window = WINDOW, \
+                                                                                                           input_shape = (IMG_ROWS, IMG_COLS), \
+                                                                                                           num_actions = self.num_actions
+                                                                                                           )
+        elif network_type=='DEEP':
+            
+            self.qt_network  	= self.create_deep_model(window = WINDOW, \
+                                                         input_shape = (IMG_ROWS, IMG_COLS), \
+                                                         num_actions = self.num_actions
+                                                         )
+                
+            self.q_network   	= self.create_deep_model(window = WINDOW, \
+                                                                                                     input_shape = (IMG_ROWS, IMG_COLS), \
+                                                                                                     num_actions = self.num_actions
+                                                                                                     )
+
+    def compile(self, optimizer, loss_func):
+        """Setup all of the TF graph variables/ops.
+            
+            This is inspired by the compile method on the
+            keras.models.Model class.
+            
+            This is a good place to create the target network, setup your
+            loss function and any placeholders you might need.
+            
+            You should use the mean_huber_loss function as your
+            loss_function. You can also experiment with MSE and other
+            losses.
+            
+            The optimizer can be whatever class you want. We used the
+            keras.optimizers.Optimizer class. Specifically the Adam
+            optimizer.
+            """
+            
+        if optimizer == 'Adam':
+        	opti = optimizers.Adam(lr=self.alpha)
+        	self.q_network.compile(loss=loss_func, optimizer = opti)
+        
+    def update_policy(self):
+        """Update your policy.
+            
+            Behavior may differ based on what stage of training your
+            in. If you're in training mode then you should check if you
+            should update your network parameters based on the current
+            step and the value you set for train_freq.
+            
+            Inside, you'll want to sample a minibatch, calculate the
+            target values, update your network, and then update your
+            target values.
+            
+            You might want to return the loss and other metrics as an
+            output. They can help you monitor how training is going.
+            """
+        
+        if self.num_samples % self.train_freq == 0:
+            
+            # generate batch samples for CNN
+            mem_samples = self.memory.sample(self.batch_size)
+            mem_samples = self.atari_proc.process_batch(mem_samples)
+            input_state_batch=np.zeros((self.batch_size, 4, 84, 84))
+            input_nextstate_batch=np.zeros((self.batch_size, 4, 84, 84))
+            input_mask_batch=np.zeros((self.batch_size,self.num_actions))
+            output_target_batch=np.zeros((self.batch_size,self.num_actions))
+            
+            for ind in range(self.batch_size):
+                input_state_batch[ind,:,:,:] = mem_samples[ind].state
+                input_nextstate_batch[ind,:,:,:] = mem_samples[ind].next_state
+                input_mask_batch[ind, mem_samples[ind].action] = 1
+            
+            target_q = self.q_network.predict([input_nextstate_batch, self.input_dummymask_batch],batch_size=1)
+            best_target_q = np.amax(target_q, axis=1)
+            #print 'best Q values of batch'
+            #print best_target_q
+            for ind in range(self.batch_size):
+                output_target_batch[ind, mem_samples[ind].action] = mem_samples[ind].reward + self.gamma*best_target_q[ind]
+        
+            temp_loss = self.q_network.train_on_batch(x=[input_state_batch, input_mask_batch], y=output_target_batch)
+            
+            self.train_loss.append(temp_loss)
+            
+            #if self.num_updates % (self.target_update_freq/100) == 0:
+            self.mean_q.append(self.eval_avg_q())
+
+        #get_soft_target_model_updates(self.qt_network, self.q_network)
+
+    def save_data(self):
+        
+        plt.plot(self.mean_q)
+        plt.savefig('dqn_mean_q_{0}.jpg'.format(self.network_type))
+        plt.close()
+        plt.plot(self.train_loss)
+        plt.savefig('dqn_train_loss_{0}.jpg'.format(self.network_type))
+        plt.close()
+        with open('dqn_mean_q_{0}.data'.format(self.network_type),'w') as f:
+            pickle.dump(self.mean_q,f)
+        with open('dqn_train_loss_{0}.data'.format(self.network_type),'w') as f:
+            pickle.dump(self.train_loss,f)
+            self.q_network.save_weights('dqn_source_{0}.weight'.format(self.network_type))
