@@ -357,7 +357,7 @@ class QNAgent:
         """
         
         total_reward = 0
-        for episode_idx in range(num_episodes)
+        for episode_idx in range(num_episodes):
         
             state=env.reset()
             self.hist_proc.reset()
