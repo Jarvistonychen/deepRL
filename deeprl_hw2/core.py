@@ -228,10 +228,10 @@ class ReplayMemory:
 		self.once_full = 1
 	#sample = Sample()
 	sample = self.memory[self.pointer]
-	sample.state = np.copy(state)
+	sample.state = np.copy(np.squeeze(state))
 	sample.action = action
 	sample.reward = reward
-	sample.next_state = np.copy(next_state)
+	sample.next_state = np.copy(np.squeeze(next_state))
 	sample.is_terminal = is_terminal
 	if self.pointer >= self.max_size - 1:
 		self.pointer = 0
