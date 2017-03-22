@@ -289,6 +289,7 @@ class QNAgent:
             action = self.select_action(policy='burnin')
             nextstate, reward, is_terminal, debug_info = env.step(action)
             nextstate_history = self.preproc.get_history_for_memory(nextstate)
+            nextstate_history_float = self.preproc.get_history_for_network(nextstate)
             self.memory.append(state_history, \
                                    action, \
                                    self.atari_proc.process_reward(reward), \
@@ -296,7 +297,7 @@ class QNAgent:
                                    is_terminal)
             self.num_samples += 1
             if self.num_samples >= UPDATE_OFFSET and self.num_samples < NUM_RAND_STATE + UPDATE_OFFSET:
-                self.rand_states[self.num_samples-UPDATE_OFFSET,:,:,:] = state_history
+                self.rand_states[self.num_samples-UPDATE_OFFSET,:,:,:] = np.squeeze(nextstate_history_float)
         
         print '=========== Memory burn in ({0}) finished =========='.format(self.num_burn_in)
         
@@ -304,39 +305,39 @@ class QNAgent:
             
             self.hist_proc.reset()
             state = env.reset()
-            state_history = self.preproc.get_history_for_memory(nextstate)
+            state_history = self.preproc.get_history_for_memory(state)
+            state_history_float = self.preproc.get_history_for_network(state)
 
             for step in range(max_episode_length):
               
-                action = self.select_action(policy='training',state=[state_history, self.input_dummymask])
+                action = self.select_action(policy='training',state=[state_history_float, self.input_dummymask])
                 nextstate, reward, is_terminal, debug_info = env.step(action)
                 nextstate_history = self.preproc.get_history_for_memory(nextstate)
+                nextstate_history_float = self.preproc.get_history_for_network(nextstate)
                 self.memory.append(state_history, \
                                         action, \
                                         self.atari_proc.process_reward(reward), \
                                         nextstate_history, \
                                         is_terminal)
                 state_history = np.copy(nextstate_history)
+                state_history_float = np.copy(nextstate_history_float)
                 
                 if self.num_samples % self.train_freq == 0:
                     self.update_policy()
+        	    self.num_updates += 1 
                 
-                if self.num_updates % self.target_update_freq == 0:
-                    self.save_data()
-                    print "======================= Sync target and source network ============================="
-                    tfrl.utils.get_hard_target_model_updates(self.qt_network, self.q_network)
-            
-           
                 self.num_samples += 1
                 
                 if is_terminal:
+		    print 'Game terminates after {0} samples and {1} updates'.format(self.num_samples-self.num_burn_in, self.num_updates)
                     break
 
             print "======================= evaluating source network ============================="
             self.evaluate(env,10,max_episode_length/100)
             plt.plot(self.total_reward)
-            plt.savefig('dqn_reward_q_{0}.jpg'.format(self.network_type))
+            plt.savefig('ftdqn_reward_q_{0}.jpg'.format(self.network_type))
             plt.close()
+
 
     def eval_avg_q(self):
         return np.mean(np.amax(self.calc_q_values([self.rand_states, self.rand_states_mask]), axis=1))
@@ -549,7 +550,6 @@ class FTDQNAgent(QNAgent):
             output. They can help you monitor how training is going.
         """
                 
-        self.num_updates += 1 
         # generate batch samples for CNN
         mem_samples = self.memory.sample(self.batch_size)
 	#print 'sample 0',mem_samples[0].state[0,34:54,34:54], mem_samples[0].next_state[0,34:54,34:54]
@@ -577,8 +577,14 @@ class FTDQNAgent(QNAgent):
 
         self.train_loss.append(temp_loss)
     
-    	if self.num_updates % (self.target_update_freq/100) == 0:
-        	self.mean_q.append(self.eval_avg_q())
+	if self.num_updates % (self.target_update_freq/100) == 0:
+	    self.mean_q.append(self.eval_avg_q())
+
+	if self.num_updates % self.target_update_freq == 0:
+	    self.save_data()
+	    print "======================= Sync target and source network ============================="
+	    tfrl.utils.get_hard_target_model_updates(self.qt_network, self.q_network)
+
 
     def save_data(self):
         plt.plot(self.mean_q)
@@ -892,8 +898,6 @@ class DQNAgent(QNAgent):
             
             self.train_loss.append(temp_loss)
             
-            if self.num_updates % (self.target_update_freq/100) == 0:
-            	self.mean_q.append(self.eval_avg_q())
 
     def save_data(self):
         
