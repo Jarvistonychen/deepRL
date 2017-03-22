@@ -8,6 +8,7 @@ import pickle
 import matplotlib.pyplot as plt
 
 import deeprl_hw2 as tfrl
+from copy import deepcopy
 
 GAMMA = 0.99
 ALPHA = 1e-4
@@ -280,13 +281,13 @@ class QNAgent:
         self.hist_proc.reset()
         action = self.select_action(policy='burnin')
         nextstate, reward, is_terminal, debug_info = env.step(action)
-        nextstate_history = self.preproc.get_history_for_memory(nextstate)
+        nextstate_history = deepcopy(self.preproc.get_history_for_memory(nextstate))
 
         for step in range(self.num_burn_in):
             state_history = np.copy(nextstate_history)
             action = self.select_action(policy='burnin')
             nextstate, reward, is_terminal, debug_info = env.step(action)
-            nextstate_history = self.preproc.get_history_for_memory(nextstate)
+            nextstate_history = deepcopy(self.preproc.get_history_for_memory(nextstate))
             self.memory.append(state_history, \
                                    action, \
                                    self.atari_proc.process_reward(reward), \
@@ -302,13 +303,13 @@ class QNAgent:
             
             self.hist_proc.reset()
             state = env.reset()
-            state_history = self.preproc.get_history_for_memory(nextstate)
+            state_history = deepcopy(self.preproc.get_history_for_memory(nextstate))
 
             for step in range(max_episode_length):
               
                 action = self.select_action(policy='training',state=[state_history, self.input_dummymask])
                 nextstate, reward, is_terminal, debug_info = env.step(action)
-                nextstate_history = self.preproc.get_history_for_memory(nextstate)
+                nextstate_history = deepcopy(self.preproc.get_history_for_memory(nextstate))
                 self.memory.append(state_history, \
                                         action, \
                                         self.atari_proc.process_reward(reward), \
@@ -358,14 +359,14 @@ class QNAgent:
         
             state=env.reset()
             self.hist_proc.reset()
-            state_history = self.preproc.get_history_for_network(state)
+            state_history = deepcopy(self.preproc.get_history_for_network(state))
             
             for step in range(max_episode_length):
                 
                 action = self.select_action(policy='testing',state=[state_history, self.input_dummymask])
                 
                 state, reward, is_terminal, debug_info = env.step(action)
-                state_history = self.preproc.get_history_for_network(state)
+                state_history = deepcopy(self.preproc.get_history_for_network(state))
                 
                 total_reward+=reward
                 
@@ -722,10 +723,6 @@ class DDQNAgent(QNAgent):
         self.train_loss.append(temp_loss)
         self.mean_q.append(self.eval_avg_q())
 
-        if self.num_updates % self.target_update_freq == 0:
-            self.save_data()
-            print "======================= Sync target and source network ============================="
-            tfrl.utils.get_hard_target_model_updates(self.qt_network, self.q_network)
 
     def save_data(self):
         plt.plot(self.mean_q)
