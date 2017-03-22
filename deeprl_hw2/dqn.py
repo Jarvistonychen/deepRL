@@ -537,9 +537,9 @@ class DQNAgent(QNAgent):
         self.num_updates += 1 
         # generate batch samples for CNN
         mem_samples = self.memory.sample(self.batch_size)
-	#print mem_samples[0].state, mem_samples[0].next_state
-	#print mem_samples[15].state,mem_samples[15].next_state
-	#print mem_samples[31].state,mem_samples[31].next_state
+	print 'sample 0',mem_samples[0].state[0,:,:], mem_samples[0].next_state[0,:,:]
+	print 'sample 15',mem_samples[15].state[0,:,:],mem_samples[15].next_state[0,:,:]
+	print 'sample 31',mem_samples[31].state[0,:,:],mem_samples[31].next_state[0,:,:]
         mem_samples = self.atari_proc.process_batch(mem_samples)
         input_state_batch=np.zeros((self.batch_size, 4, 84, 84))
         input_nextstate_batch=np.zeros((self.batch_size, 4, 84, 84))
