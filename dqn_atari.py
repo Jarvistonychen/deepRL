@@ -11,6 +11,7 @@ import numpy as np
 import deeprl_hw2 as tfrl
 from deeprl_hw2.dqn import DQNAgent
 from deeprl_hw2.dqn import DDQNAgent
+from deeprl_hw2.dqn import FTDQNAgent
 from deeprl_hw2.objectives import mean_huber_loss
 
 
@@ -91,7 +92,7 @@ def main():  # noqa: D103
    
     env = gym.make('Enduro-v0')
     
-    dqn_agent = DQNAgent(network_type 	    = 'DEEP', \
+    dqn_agent = FTDQNAgent(network_type 	    = 'DEEP', \
 			 num_actions	    = env.action_space.n, \
                          preprocessors      = [atari_preproc, history_preproc, preproc], \
                          memory 	    = replay_mem, \
