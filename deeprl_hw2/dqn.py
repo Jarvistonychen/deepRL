@@ -333,7 +333,7 @@ class QNAgent:
                     break
 
             print "======================= evaluating source network ============================="
-            self.evaluate(env,10,max_episode_length/100)
+            self.evaluate(env,10,max_episode_length)
             plt.plot(self.total_reward)
             plt.savefig('ftdqn_reward_q_{0}.jpg'.format(self.network_type))
             plt.close()
