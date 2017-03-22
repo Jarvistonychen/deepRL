@@ -7,6 +7,7 @@ in your code.
 import numpy as np
 #import attr
 
+DEBUG = 0
 
 class Policy:
     """Base class representing an MDP policy.
@@ -63,7 +64,10 @@ class UniformRandomPolicy(Policy):
         int:
           Action index in range [0, num_actions)
         """
-        return np.random.randint(0, self.num_actions)
+        action = np.random.randint(0, self.num_actions)
+	if DEBUG:
+		print 'In uniform policy: action {0}'.format(action)
+	return action
 
     def get_config(self):  # noqa: D102
         return {'num_actions': self.num_actions}
@@ -76,7 +80,10 @@ class GreedyPolicy(Policy):
     """
 
     def select_action(self, q_values):  # noqa: D102
-        return np.argmax(q_values)
+        action = np.argmax(q_values)
+	if DEBUG:
+		print 'In greedy policy: action {0}'.format(action)
+	return action
 
 
 class GreedyEpsilonPolicy(Policy):
@@ -109,11 +116,15 @@ class GreedyEpsilonPolicy(Policy):
           The action index chosen.
         """
 	rand_num = np.random.rand()
-	num_act = q_values.shape[0]
+	num_act = 9
 	if rand_num < self.epsilon:
-		return np.random.randint(num_act)
+		action =  np.random.randint(num_act)
 	else:
-		return np.argmax(q_values)
+		action = np.argmax(q_values)
+	
+	if DEBUG:
+		print 'GreedyEpsilon: epsilon {0} action {1}'.format(self.epsilon, action)
+	return action
 
 
 class LinearDecayGreedyEpsilonPolicy(Policy):
@@ -159,7 +170,10 @@ class LinearDecayGreedyEpsilonPolicy(Policy):
         a = -float(self.start_value - self.end_value) / float(self.num_steps)
         b = float(self.start_value)
         self.policy.epsilon = max(self.end_value, a * float(num_update) + b)
-	return self.policy.select_action(q_values)
+	action = self.policy.select_action(q_values)
+	if DEBUG:
+		print 'LinearDecay: epsilon {0} action {1}'.format(self.policy.epsilon,action)
+	return action
 
     def reset(self):
 	"""Start the decay over at the start value."""

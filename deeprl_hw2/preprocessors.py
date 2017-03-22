@@ -53,7 +53,8 @@ class HistoryPreprocessor(Preprocessor):
 
         Useful when you start a new episode.
         """
-	self.state_seq = np.zeros((1,self.hist_len,84,84), dtype=np.uint8)
+	self.state_seq_mem = np.zeros((1,self.hist_len, 84,84), dtype=np.uint8)
+	self.state_seq = np.zeros((1,self.hist_len, 84,84))
 	
 
     def get_config(self):
@@ -148,9 +149,13 @@ class AtariPreprocessor(Preprocessor):
         both state and next state values.
         """
 	samples_temp = copy.deepcopy(samples)
+	#print 'before process_batch samples[0].state {0}'.format(samples[0].state)
+	#print 'before process_batch samples_temp[0].state {0}'.format(samples_temp[0].state)
 	for item in samples_temp:
 		item.state = item.state.astype(np.float)
 		item.next_state = item.next_state.astype(np.float)
+	#print 'after process_batch samples[0].state {0}'.format(samples[0].state)
+	#print 'after process_batch samples_temp[0].state {0}'.format(samples_temp[0].state)
 	return samples_temp
 
     def process_reward(self, reward):

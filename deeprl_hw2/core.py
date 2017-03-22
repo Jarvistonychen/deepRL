@@ -2,6 +2,7 @@
 
 frame_int = 4
 frame_resize = 84
+DEBUG = 0
 import numpy as np
 
 class Sample:
@@ -222,7 +223,8 @@ class ReplayMemory:
 	self.once_full = 0
 
     def append(self, state, action, reward, next_state, is_terminal):
-	#print 'Append new sample to memory: {0}/{1}'.format(self.pointer, self.max_size)
+	if DEBUG:
+		print 'Append new sample to memory: {0}/{1}'.format(self.pointer, self.max_size)
 	self.sample_count += 1
 	if self.sample_count >= self.max_size:
 		self.once_full = 1
@@ -248,6 +250,8 @@ class ReplayMemory:
 	else:
 		rand_max = np.arange(self.sample_count)
 	np.random.shuffle(rand_max)
+	if DEBUG:
+		print 'sampled memory {0}'.format(rand_max[:batch_size])
 	for ind in range(batch_size):
 		samples[ind] = self.memory[rand_max[ind]]
 	return samples

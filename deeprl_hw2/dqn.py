@@ -194,7 +194,9 @@ class QNAgent:
         ------
         Q-values for the state(s)
         """
-        return self.q_network.predict(state, batch_size = 1)
+        q_values =  self.q_network.predict(state, batch_size = 1)
+	#print 'shape from calc_q_values {0}'.format(q_values.shape)
+	return q_values
 
     def calc_qt_values(self, state):
         """Given a state (or batch of states) calculate the Q-values.
@@ -250,7 +252,7 @@ class QNAgent:
                 else:
                     return self.burnin_policy.select_action()
 
-    def fit(self, env,env2, num_iterations, max_episode_length=None):
+    def fit(self, env, num_iterations, max_episode_length=None):
         """Fit your model to the provided environment.
 
         Its a good idea to print out things like loss, average reward,
@@ -324,17 +326,17 @@ class QNAgent:
                     print "======================= Sync target and source network ============================="
                     tfrl.utils.get_hard_target_model_updates(self.qt_network, self.q_network)
             
-                if self.num_updates % self.eval_freq == 0:
-                    self.evaluate(env2,20,max_episode_length/100)
-                    plt.plot(self.total_reward)
-                    plt.savefig('dqn_reward_q_{0}.jpg'.format(self.network_type))
-                    plt.close()
            
                 self.num_samples += 1
                 
                 if is_terminal:
                     break
 
+            print "======================= evaluating source network ============================="
+            self.evaluate(env,10,max_episode_length/100)
+            plt.plot(self.total_reward)
+            plt.savefig('dqn_reward_q_{0}.jpg'.format(self.network_type))
+            plt.close()
 
     def eval_avg_q(self):
         return np.mean(np.amax(self.calc_q_values([self.rand_states, self.rand_states_mask]), axis=1))
@@ -575,25 +577,22 @@ class FTDQNAgent(QNAgent):
 
         self.train_loss.append(temp_loss)
     
-    #if self.num_updates % (self.target_update_freq/100) == 0:
-        self.mean_q.append(self.eval_avg_q())
-
-
-            #get_soft_target_model_updates(self.qt_network, self.q_network)
+    	if self.num_updates % (self.target_update_freq/100) == 0:
+        	self.mean_q.append(self.eval_avg_q())
 
     def save_data(self):
         plt.plot(self.mean_q)
-        plt.savefig('dqn_mean_q_{0}.jpg'.format(self.network_type))
+        plt.savefig('ftdqn_mean_q_{0}.jpg'.format(self.network_type))
         plt.close()
         plt.plot(self.train_loss)
-        plt.savefig('dqn_train_loss_{0}.jpg'.format(self.network_type))
+        plt.savefig('ftdqn_train_loss_{0}.jpg'.format(self.network_type))
         plt.close()
-        with open('dqn_mean_q_{0}.data'.format(self.network_type),'w') as f:
+        with open('ftdqn_mean_q_{0}.data'.format(self.network_type),'w') as f:
             pickle.dump(self.mean_q,f)
-        with open('dqn_train_loss_{0}.data'.format(self.network_type),'w') as f:
+        with open('ftdqn_train_loss_{0}.data'.format(self.network_type),'w') as f:
             pickle.dump(self.train_loss,f)
-        self.q_network.save_weights('dqn_source_{0}.weight'.format(self.network_type))
-        self.qt_network.save_weights('dqn_target_{0}.weight'.format(self.network_type))
+        self.q_network.save_weights('ftdqn_source_{0}.weight'.format(self.network_type))
+        self.qt_network.save_weights('ftdqn_target_{0}.weight'.format(self.network_type))
 
 
 class DDQNAgent(QNAgent):
@@ -893,10 +892,8 @@ class DQNAgent(QNAgent):
             
             self.train_loss.append(temp_loss)
             
-            #if self.num_updates % (self.target_update_freq/100) == 0:
-            self.mean_q.append(self.eval_avg_q())
-
-        #get_soft_target_model_updates(self.qt_network, self.q_network)
+            if self.num_updates % (self.target_update_freq/100) == 0:
+            	self.mean_q.append(self.eval_avg_q())
 
     def save_data(self):
         
