@@ -104,7 +104,7 @@ class QNAgent:
         self.batch_size		= batch_size
         self.num_updates 	= 0
         self.num_samples    = 0
-        self.total_remward  = []
+        self.total_reward  = []
         self.alpha 		= alpha
         self.train_loss		= []
         self.mean_q		= []
@@ -358,7 +358,7 @@ class QNAgent:
         
             state=env.reset()
             self.hist_proc.reset()
-            state_history = self.preproc.get_history_for_network(nextstate)
+            state_history = self.preproc.get_history_for_network(state)
             
             for step in range(max_episode_length):
                 
