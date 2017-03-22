@@ -104,6 +104,7 @@ class QNAgent:
         self.batch_size		= batch_size
         self.num_updates 	= 0
         self.num_samples    = 0
+        self.total_remward  = []
         self.alpha 		= alpha
         self.train_loss		= []
         self.mean_q		= []
@@ -354,23 +355,27 @@ class QNAgent:
         You can also call the render function here if you want to
         visually inspect your policy.
         """
-        self.q_network.load_weights('source_{0}.weight'.format(self.network_type))
-        env.reset()
-        self.atari_proc.reset()
-        self.hist_proc.reset()
-        for step in range(max_episode_length):
-            if step > 0:
-                state_history = nextstate_history
-                action = self.select_action(policy='testing',state=[state_history, self.input_dummymask])
-            else: # uniform before momery initialized
-                action = self.select_action(policy='observing')
-            nextstate, reward, is_terminal, debug_info = env.step(action)
-            if is_terminal:
-                break
+        
+        total_reward = 0
+        for episode_idx in range(num_episodes)
+        
+            env.reset()
+            self.hist_proc.reset()
+            
+            for step in range(max_episode_length):
+                
+                if step > 0:
+                    state_history = nextstate_history
+                    action = self.select_action(policy='testing',state=[state_history, self.input_dummymask])
+                
+                nextstate, reward, is_terminal, debug_info = env.step(action)
+                total_reward+=reward
+                if is_terminal:
+                        break
 
-            nextstate_history = self.preproc.get_history_for_network(nextstate)
-            env.render()
-            state = nextstate
+                nextstate_history = self.preproc.get_history_for_network(nextstate)
+
+        self.total_reward.append(total_reward)
 
     def update_policy(self):
         """Update your policy.
