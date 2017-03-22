@@ -292,30 +292,45 @@ class QNAgent:
                                    self.atari_proc.process_reward(reward), \
                                    nextstate_history, \
                                    is_terminal)
-	    if self.num_samples >= UPDATE_OFFSET and self.num_samples < NUM_RAND_STATE + UPDATE_OFFSET:
-		self.rand_states[self.num_samples-UPDATE_OFFSET,:,:,:] = state_history
             self.num_samples += 1
+            if self.num_samples >= UPDATE_OFFSET and self.num_samples < NUM_RAND_STATE + UPDATE_OFFSET:
+                self.rand_states[self.num_samples-UPDATE_OFFSET,:,:,:] = state_history
         
         print '=========== Memory burn in ({0}) finished =========='.format(self.num_burn_in)
         
         while self.num_samples < num_iterations:
-            env.reset()
+            
             self.hist_proc.reset()
-            action = self.select_action(policy='training',state=[state_history, self.input_dummymask])
-	    nextstate, reward, is_terminal, debug_info = env.step(action)
-            nextstate_history = self.preproc.get_history_for_memory(nextstate)
+            state = env.reset()
+            state_history = self.preproc.get_history_for_memory(nextstate)
+
             for step in range(max_episode_length):
-                state_history = np.copy(nextstate_history)
+              
                 action = self.select_action(policy='training',state=[state_history, self.input_dummymask])
-		nextstate, reward, is_terminal, debug_info = env.step(action)
+                nextstate, reward, is_terminal, debug_info = env.step(action)
                 nextstate_history = self.preproc.get_history_for_memory(nextstate)
-	        self.memory.append(state_history, \
+                self.memory.append(state_history, \
                                         action, \
                                         self.atari_proc.process_reward(reward), \
                                         nextstate_history, \
                                         is_terminal)
+                state_history = np.copy(nextstate_history)
+                
                 if self.num_samples % self.train_freq == 0:
                     self.update_policy()
+                
+                if self.num_updates % self.target_update_freq == 0:
+                    self.save_data()
+                    print "======================= Sync target and source network ============================="
+                    tfrl.utils.get_hard_target_model_updates(self.qt_network, self.q_network)
+            
+                if self.num_updates % self.eval_freq == 0:
+                    self.evaluate(env,20,max_episode_length)
+                    plt.plot(self.total_reward)
+                    plt.savefig('dqn_mean_q_{0}.jpg'.format(self.network_type))
+                    plt.close()
+           
+            
                 
                 self.num_samples += 1
                 
@@ -416,7 +431,7 @@ class QNAgent:
         
         raise NotImplementedError('This method should be overriden.')
 
-class DQNAgent(QNAgent):
+class FTDQNAgent(QNAgent):
     
     """Class implementing DQN.
         
@@ -565,10 +580,7 @@ class DQNAgent(QNAgent):
     #if self.num_updates % (self.target_update_freq/100) == 0:
         self.mean_q.append(self.eval_avg_q())
 
-        if self.num_updates % self.target_update_freq == 0:
-            self.save_data()
-            print "======================= Sync target and source network ============================="
-            tfrl.utils.get_hard_target_model_updates(self.qt_network, self.q_network)
+
             #get_soft_target_model_updates(self.qt_network, self.q_network)
 
     def save_data(self):
@@ -738,7 +750,7 @@ class DDQNAgent(QNAgent):
             self.q_network.compile(loss=loss_func, optimizer = opti)
 
 
-class FTDQNAgent(QNAgent):
+class DQNAgent(QNAgent):
     
     """Class implementing DQN.
         
