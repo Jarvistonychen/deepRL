@@ -259,3 +259,5 @@ class ReplayMemory:
     def clear(self):
 	self.pointer = 0
 	self.memory = [Sample() for i in range(self.max_size)]
+	self.sample_count = 0
+	self.once_full = 0
