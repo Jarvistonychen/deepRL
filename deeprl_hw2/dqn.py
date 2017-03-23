@@ -10,6 +10,8 @@ import matplotlib.pyplot as plt
 import deeprl_hw2 as tfrl
 from copy import deepcopy
 
+DEBUG=0
+
 GAMMA = 0.99
 ALPHA = 1e-4
 EPSILON = 0.05
@@ -101,11 +103,11 @@ class QNAgent:
         self.target_update_freq = target_update_freq
         self.num_burn_in 	= num_burn_in
         self.train_freq		= train_freq
-        self.eval_freq      = eval_freq
+        self.eval_freq      	= eval_freq
         self.batch_size		= batch_size
         self.num_updates 	= 0
-        self.num_samples    = 0
-        self.total_reward  = []
+        self.num_samples    	= 0
+        self.total_reward  	= []
         self.alpha 		= alpha
         self.train_loss		= []
         self.mean_q		= []
@@ -302,6 +304,8 @@ class QNAgent:
         
         print '=========== Memory burn in ({0}) finished =========='.format(self.num_burn_in)
         
+	num_episode = 0
+	exp_num=3
         while self.num_samples < num_iterations:
             
             self.hist_proc.reset()
@@ -332,12 +336,17 @@ class QNAgent:
                 if is_terminal:
 		    print 'Game terminates after {0} samples and {1} updates'.format(self.num_samples-self.num_burn_in, self.num_updates)
                     break
+	
+	    num_episode += 1
 
-            print "======================= evaluating source network ============================="
-            self.evaluate(env,10,max_episode_length)
-            plt.plot(self.total_reward)
-            plt.savefig('ftdqn_reward_q_{0}.jpg'.format(self.network_type))
-            plt.close()
+	    if num_episode % 10 == 0:
+		    print "======================= evaluating source network ============================="
+		    self.evaluate(env,10,max_episode_length)
+		    plt.plot(self.total_reward)
+		    plt.savefig('ftdqn_reward_q_{0}_{1}.jpg'.format(self.network_type,exp_num))
+		    plt.close()
+        self.q_network.save_weights('ftdqn_source_{0}_{1}.weight'.format(self.network_type, exp_num))
+        self.qt_network.save_weights('ftdqn_target_{0}_{1}.weight'.format(self.network_type, exp_num))
 
 
     def eval_avg_q(self):
@@ -509,8 +518,8 @@ class FTDQNAgent(QNAgent):
 						   input_shape = (IMG_ROWS, IMG_COLS), \
 						   num_actions = self.num_actions)
 
-	      self.qt_network.load_weights('ftdqn_target_DEEP.weight')
-	      self.q_network.load_weights('ftdqn_source_DEEP.weight')
+	      #self.qt_network.load_weights('ftdqn_target_DEEP.weight')
+	      #self.q_network.load_weights('ftdqn_source_DEEP.weight')
 
     def compile(self, optimizer, loss_func):
         """Setup all of the TF graph variables/ops.
@@ -565,8 +574,8 @@ class FTDQNAgent(QNAgent):
         
         target_q = self.qt_network.predict([input_nextstate_batch, self.input_dummymask_batch],batch_size=self.batch_size)
         best_target_q = np.amax(target_q, axis=1)
-        #print 'best Q values of batch'
-        #print best_target_q
+	if DEBUG:
+        	print 'best Q values of batch {0}'.format(best_target_q)
         for ind in range(self.batch_size):
             output_target_batch[ind, mem_samples[ind].action] = mem_samples[ind].reward + self.gamma*best_target_q[ind]
         
@@ -584,19 +593,19 @@ class FTDQNAgent(QNAgent):
 
 
     def save_data(self):
-	exp_num = 2
+	exp_num = 3
         plt.plot(self.mean_q)
         plt.savefig('ftdqn_mean_q_{0}_{1}.jpg'.format(self.network_type, exp_num))
         plt.close()
         plt.plot(self.train_loss)
         plt.savefig('ftdqn_train_loss_{0}_{1}.jpg'.format(self.network_type, exp_num))
         plt.close()
-        with open('ftdqn_mean_q_{0}_{1}.data'.format(self.network_type, exp_num),'w') as f:
-            pickle.dump(self.mean_q,f)
-        with open('ftdqn_train_loss_{0}_{1}.data'.format(self.network_type, exp_num),'w') as f:
-            pickle.dump(self.train_loss,f)
-        self.q_network.save_weights('ftdqn_source_{0}_{1}.weight'.format(self.network_type, exp_num))
-        self.qt_network.save_weights('ftdqn_target_{0}_{1}.weight'.format(self.network_type, exp_num))
+        #with open('ftdqn_mean_q_{0}_{1}.data'.format(self.network_type, exp_num),'w') as f:
+        #    pickle.dump(self.mean_q,f)
+        #with open('ftdqn_train_loss_{0}_{1}.data'.format(self.network_type, exp_num),'w') as f:
+        #    pickle.dump(self.train_loss,f)
+        #self.q_network.save_weights('ftdqn_source_{0}_{1}.weight'.format(self.network_type, exp_num))
+        #self.qt_network.save_weights('ftdqn_target_{0}_{1}.weight'.format(self.network_type, exp_num))
 
 
 class DDQNAgent(QNAgent):

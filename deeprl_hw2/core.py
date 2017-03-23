@@ -36,10 +36,10 @@ class Sample:
       True if this action finished the episode. False otherwise.
     """
 
-    state = np.zeros((frame_int, frame_resize, frame_resize))
+    state = np.zeros((frame_int, frame_resize, frame_resize),dtype=np.uint8)
     action = 0
     reward = 0
-    next_state = np.zeros((frame_int, frame_resize, frame_resize))
+    next_state = np.zeros((frame_int, frame_resize, frame_resize),dtype=np.uint8)
     is_terminal = False
 
 
