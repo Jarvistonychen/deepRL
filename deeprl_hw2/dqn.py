@@ -136,7 +136,7 @@ class QNAgent:
         
         a1 = Input(shape=(window,input_shape[0],input_shape[1]))
         a2 = Input(shape=(num_actions,))
-        b = Conv2D(16, (8, 8), strides=4, padding='same', data_format='channels_first')(a1)
+        b = Conv2D(16, (8, 8), strides=4, padding='same',use_bias=True, data_format='channels_first')(a1)
         bn = BatchNormalization(axis=1)(b)
         b = Activation ('relu')(bn)
         c = Conv2D(32, (4, 4), strides=2, padding='same',use_bias=True, data_format='channels_first')(b)
@@ -491,26 +491,25 @@ class FTDQNAgent(QNAgent):
         QNAgent.__init__(self,network_type,num_actions,preprocessors,memory,burnin_policy,observing_policy,training_policy,testing_policy,gamma,alpha,target_update_freq,num_burn_in,train_freq,eval_freq,batch_size)
 
         if network_type=='LINEAR':
-                              self.qt_network  	= self.create_linear_model(window = WINDOW, \
-                                                input_shape = (IMG_ROWS, IMG_COLS), \
-                                                num_actions = self.num_actions, \
-                                                )
+	      self.qt_network  	= self.create_linear_model(window = WINDOW, \
+							input_shape = (IMG_ROWS, IMG_COLS), \
+							num_actions = self.num_actions)
     
-                              self.q_network   	= self.create_linear_model(window = WINDOW, \
-                                            input_shape = (IMG_ROWS, IMG_COLS), \
-                                            num_actions = self.num_actions
-                                                )
+	      self.q_network   	= self.create_linear_model(window = WINDOW, \
+						    input_shape = (IMG_ROWS, IMG_COLS), \
+						    num_actions = self.num_actions)
         elif network_type=='DEEP':
                               
-                              self.qt_network  	= self.create_deep_model(window = WINDOW, \
-                                                                           input_shape = (IMG_ROWS, IMG_COLS), \
-                                                                           num_actions = self.num_actions, \
-                                                                           )
+	      self.qt_network  	= self.create_deep_model(window = WINDOW, \
+						   input_shape = (IMG_ROWS, IMG_COLS), \
+						   num_actions = self.num_actions)
                               
-                              self.q_network   	= self.create_deep_model(window = WINDOW, \
-                                                                           input_shape = (IMG_ROWS, IMG_COLS), \
-                                                                           num_actions = self.num_actions
-                                                                        )
+	      self.q_network   	= self.create_deep_model(window = WINDOW, \
+						   input_shape = (IMG_ROWS, IMG_COLS), \
+						   num_actions = self.num_actions)
+
+	      self.qt_network.load_weights('ftdqn_target_DEEP.weight')
+	      self.q_network.load_weights('ftdqn_source_DEEP.weight')
 
     def compile(self, optimizer, loss_func):
         """Setup all of the TF graph variables/ops.
