@@ -755,7 +755,6 @@ class DDQNAgent(QNAgent):
             output. They can help you monitor how training is going.
             """
             
-        self.num_updates += 1 
         # generate batch samples for CNN
         mem_samples = self.memory.sample(self.batch_size)
         mem_samples = self.atari_proc.process_batch(mem_samples)
@@ -781,9 +780,16 @@ class DDQNAgent(QNAgent):
             output_target_batch[ind, mem_samples[ind].action] = mem_samples[ind].reward + self.gamma*best_target_q[ind]
 
         temp_loss = self.q_network.train_on_batch(x=[input_state_batch, input_mask_batch], y=output_target_batch)
+
+	if self.num_updates % (self.target_update_freq/100) == 0:
+            self.train_loss.append(temp_loss)
+	    self.mean_q.append(self.eval_avg_q())
+
+	if self.num_updates % self.target_update_freq == 0:
+	    self.save_data()
+	    print "======================= Sync target and source network ============================="
+	    tfrl.utils.get_hard_target_model_updates(self.qt_network, self.q_network)
         
-        self.train_loss.append(temp_loss)
-        self.mean_q.append(self.eval_avg_q())
 
 
     def save_data(self):
@@ -793,13 +799,13 @@ class DDQNAgent(QNAgent):
         plt.plot(self.train_loss)
         plt.savefig('ddqn_train_loss_{0}.jpg'.format(self.network_type))
         plt.close()
-        with open('ddqn_mean_q_{0}.data'.format(self.network_type),'w') as f:
-            pickle.dump(self.mean_q,f)
-        with open('ddqn_train_loss_{0}.data'.format(self.network_type),'w') as f:
-            pickle.dump(self.train_loss,f)
+        #with open('ddqn_mean_q_{0}.data'.format(self.network_type),'w') as f:
+        #    pickle.dump(self.mean_q,f)
+        #with open('ddqn_train_loss_{0}.data'.format(self.network_type),'w') as f:
+        #    pickle.dump(self.train_loss,f)
 
-        self.q_network.save_weights('ddqn_source_{0}.weight'.format(self.network_type))
-        self.qt_network.save_weights('ddqn_target_{0}.weight'.format(self.network_type))
+        #self.q_network.save_weights('ddqn_source_{0}.weight'.format(self.network_type))
+        #self.qt_network.save_weights('ddqn_target_{0}.weight'.format(self.network_type))
     
     def compile(self, optimizer, loss_func):
         if optimizer == 'Adam':
@@ -950,7 +956,14 @@ class DQNAgent(QNAgent):
         
             temp_loss = self.q_network.train_on_batch(x=[input_state_batch, input_mask_batch], y=output_target_batch)
             
+	if self.num_updates % (self.target_update_freq/100) == 0:
             self.train_loss.append(temp_loss)
+	    self.mean_q.append(self.eval_avg_q())
+
+	if self.num_updates % self.target_update_freq == 0:
+	    self.save_data()
+	    print "======================= Sync target and source network ============================="
+	    tfrl.utils.get_hard_target_model_updates(self.qt_network, self.q_network)
             
 
     def save_data(self):
@@ -1036,11 +1049,11 @@ class DuelingDQNAgent(QNAgent):
 						    num_actions = self.num_actions)
         elif network_type=='DEEP':
                               
-	      self.qt_network  	= self.create_deep_model(window = WINDOW, \
+	      self.qt_network  	= self.create_dueling_model(window = WINDOW, \
 						   input_shape = (IMG_ROWS, IMG_COLS), \
 						   num_actions = self.num_actions)
                               
-	      self.q_network   	= self.create_deep_model(window = WINDOW, \
+	      self.q_network   	= self.create_dueling_model(window = WINDOW, \
 						   input_shape = (IMG_ROWS, IMG_COLS), \
 						   num_actions = self.num_actions)
 
@@ -1098,8 +1111,10 @@ class DuelingDQNAgent(QNAgent):
             input_nextstate_batch[ind,:,:,:] = mem_samples[ind].next_state
             input_mask_batch[ind, mem_samples[ind].action] = 1
         
+        aux_q = self.q_network.predict([input_nextstate_batch, self.input_dummymask_batch],batch_size=self.batch_size)
+        best_actions=np.argmax(aux_q,axis=1)
         target_q = self.qt_network.predict([input_nextstate_batch, self.input_dummymask_batch],batch_size=self.batch_size)
-        best_target_q = np.amax(target_q, axis=1)
+        best_target_q = target_q[range(self.batch_size), best_actions]
 	if DEBUG:
         	print 'best Q values of batch {0}'.format(best_target_q)
         for ind in range(self.batch_size):
@@ -1118,13 +1133,14 @@ class DuelingDQNAgent(QNAgent):
 	    tfrl.utils.get_hard_target_model_updates(self.qt_network, self.q_network)
 
 
+        
     def save_data(self):
-	exp_num = 3
+	exp_num = 1
         plt.plot(self.mean_q)
-        plt.savefig('ftdqn_mean_q_{0}_{1}.jpg'.format(self.network_type, exp_num))
+        plt.savefig('dueling_mean_q_{0}_{1}.jpg'.format(self.network_type, exp_num))
         plt.close()
         plt.plot(self.train_loss)
-        plt.savefig('ftdqn_train_loss_{0}_{1}.jpg'.format(self.network_type, exp_num))
+        plt.savefig('dueling_train_loss_{0}_{1}.jpg'.format(self.network_type, exp_num))
         plt.close()
         #with open('ftdqn_mean_q_{0}_{1}.data'.format(self.network_type, exp_num),'w') as f:
         #    pickle.dump(self.mean_q,f)
