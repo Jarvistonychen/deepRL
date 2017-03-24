@@ -93,7 +93,13 @@ def main():  # noqa: D103
     env = gym.make('Enduro-v0')
     #env2 = gym.make('Enduro-v0')
     
-    ftdqn_agent = FTDQNAgent(network_type 	    = 'DEEP', \
+############# six questions; six experiments ##########################
+    #dqn_agent = DQNAgent(network_type 	    	    = 'LINEAR', \
+    #dqn_agent = FTDQNAgent(network_type 	    = 'LINEAR', \
+    #dqn_agent = DDQNAgent(network_type 	    = 'LINEAR', \
+    dqn_agent = FTDQNAgent(network_type 	    = 'DEEP', \
+    #dqn_agent = DDQNAgent(network_type 	    = 'DEEP', \
+    #dqn_agent = DuelingDQNAgent(network_type 	    = 'DEEP', \
 			 num_actions	    = env.action_space.n, \
                          preprocessors      = [atari_preproc, history_preproc, preproc], \
                          memory 	    = replay_mem, \
@@ -108,10 +114,10 @@ def main():  # noqa: D103
                          train_freq 	    = TRAIN_FREQ, \
                          batch_size 	    = BATCH_SIZE )
 
-    ftdqn_agent.compile(optimizer='Adam', loss_func=mean_huber_loss)
+    dqn_agent.compile(optimizer='Adam', loss_func=mean_huber_loss)
     #ddqn_agent.compile(optimizer='Adam', loss_func=mean_huber_loss)
 
-    ftdqn_agent.fit(env, num_iterations=MAX_NUM_ITERATIONS, max_episode_length=10000)
+    dqn_agent.fit(env, num_iterations=MAX_NUM_ITERATIONS, max_episode_length=10000)
     
 
 

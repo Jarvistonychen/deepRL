@@ -391,13 +391,8 @@ class QNAgent:
 	    num_episode += 1
 
 	    if num_episode % 100 == 0:
-		    print "======================= evaluating source network ============================="
 		    self.evaluate(env,10,max_episode_length)
-		    plt.plot(self.total_reward)
-		    plt.savefig('ftdqn_reward_q_{0}_{1}.jpg'.format(self.network_type,exp_num))
-		    plt.close()
-        self.q_network.save_weights('ftdqn_source_{0}_{1}.weight'.format(self.network_type, exp_num))
-        self.qt_network.save_weights('ftdqn_target_{0}_{1}.weight'.format(self.network_type, exp_num))
+	self.save_model()
 
 
     def eval_avg_q(self):
@@ -416,6 +411,8 @@ class QNAgent:
         You can also call the render function here if you want to
         visually inspect your policy.
         """
+
+	print "======================= evaluating source network ============================="
         
         total_reward = 0
         for episode_idx in range(num_episodes):
@@ -457,20 +454,8 @@ class QNAgent:
         raise NotImplementedError('This method should be overriden.')
 
     def save_data(self):
-        """Update your policy.
-        
-            Behavior may differ based on what stage of training your
-            in. If you're in training mode then you should check if you
-            should update your network parameters based on the current
-            step and the value you set for train_freq.
-        
-            Inside, you'll want to sample a minibatch, calculate the
-            target values, update your network, and then update your
-            target values.
-        
-            You might want to return the loss and other metrics as an
-            output. They can help you monitor how training is going.
-        """
+        raise NotImplementedError('This method should be overriden.')
+    def save_model(self):
         raise NotImplementedError('This method should be overriden.')
     
     def compile(self, optimizer, loss_func):
@@ -651,12 +636,17 @@ class FTDQNAgent(QNAgent):
         plt.plot(self.train_loss)
         plt.savefig('ftdqn_train_loss_{0}_{1}.jpg'.format(self.network_type, exp_num))
         plt.close()
+	plt.plot(self.total_reward)
+	plt.savefig('ftdqn_reward_q_{0}_{1}.jpg'.format(self.network_type,exp_num))
+	plt.close()
         #with open('ftdqn_mean_q_{0}_{1}.data'.format(self.network_type, exp_num),'w') as f:
         #    pickle.dump(self.mean_q,f)
         #with open('ftdqn_train_loss_{0}_{1}.data'.format(self.network_type, exp_num),'w') as f:
         #    pickle.dump(self.train_loss,f)
-        #self.q_network.save_weights('ftdqn_source_{0}_{1}.weight'.format(self.network_type, exp_num))
-        #self.qt_network.save_weights('ftdqn_target_{0}_{1}.weight'.format(self.network_type, exp_num))
+    def save_model(self):
+	exp_num=3
+        self.q_network.save_weights('ftdqn_source_{0}_{1}.weight'.format(self.network_type, exp_num))
+        self.qt_network.save_weights('ftdqn_target_{0}_{1}.weight'.format(self.network_type, exp_num))
 
 
 class DDQNAgent(QNAgent):
@@ -793,12 +783,16 @@ class DDQNAgent(QNAgent):
 
 
     def save_data(self):
+	exp_num = 3
         plt.plot(self.mean_q)
-        plt.savefig('ddqn_mean_q_{0}.jpg'.format(self.network_type))
+        plt.savefig('ddqn_mean_q_{0}_{1}.jpg'.format(self.network_type, exp_num))
         plt.close()
         plt.plot(self.train_loss)
-        plt.savefig('ddqn_train_loss_{0}.jpg'.format(self.network_type))
+        plt.savefig('ddqn_train_loss_{0}_{1}.jpg'.format(self.network_type, exp_num))
         plt.close()
+	plt.plot(self.total_reward)
+	plt.savefig('ddqn_reward_q_{0}_{1}.jpg'.format(self.network_type,exp_num))
+	plt.close()
         #with open('ddqn_mean_q_{0}.data'.format(self.network_type),'w') as f:
         #    pickle.dump(self.mean_q,f)
         #with open('ddqn_train_loss_{0}.data'.format(self.network_type),'w') as f:
@@ -806,6 +800,10 @@ class DDQNAgent(QNAgent):
 
         #self.q_network.save_weights('ddqn_source_{0}.weight'.format(self.network_type))
         #self.qt_network.save_weights('ddqn_target_{0}.weight'.format(self.network_type))
+    def save_model(self):
+	exp_num=3
+        self.q_network.save_weights('ddqn_source_{0}_{1}.weight'.format(self.network_type, exp_num))
+        self.qt_network.save_weights('ddqn_target_{0}_{1}.weight'.format(self.network_type, exp_num))
     
     def compile(self, optimizer, loss_func):
         if optimizer == 'Adam':
@@ -965,17 +963,25 @@ class DQNAgent(QNAgent):
             
 
     def save_data(self):
+	exp_num = 3
         plt.plot(self.mean_q)
-        plt.savefig('dqn_mean_q_{0}.jpg'.format(self.network_type))
+        plt.savefig('dqn_mean_q_{0}_{1}.jpg'.format(self.network_type, exp_num))
         plt.close()
         plt.plot(self.train_loss)
-        plt.savefig('dqn_train_loss_{0}.jpg'.format(self.network_type))
+        plt.savefig('dqn_train_loss_{0}_{1}.jpg'.format(self.network_type, exp_num))
         plt.close()
+	plt.plot(self.total_reward)
+	plt.savefig('dqn_reward_q_{0}_{1}.jpg'.format(self.network_type,exp_num))
+	plt.close()
         #with open('dqn_mean_q_{0}.data'.format(self.network_type),'w') as f:
         #    pickle.dump(self.mean_q,f)
         #with open('dqn_train_loss_{0}.data'.format(self.network_type),'w') as f:
         #    pickle.dump(self.train_loss,f)
         #self.q_network.save_weights('dqn_source_{0}.weight'.format(self.network_type))
+    def save_model(self):
+	exp_num=3
+        self.q_network.save_weights('dqn_source_{0}_{1}.weight'.format(self.network_type, exp_num))
+        self.qt_network.save_weights('dqn_target_{0}_{1}.weight'.format(self.network_type, exp_num))
 
 
 class DuelingDQNAgent(QNAgent):
@@ -1132,16 +1138,21 @@ class DuelingDQNAgent(QNAgent):
 
         
     def save_data(self):
-	exp_num = 1
+	exp_num = 3
         plt.plot(self.mean_q)
         plt.savefig('dueling_mean_q_{0}_{1}.jpg'.format(self.network_type, exp_num))
         plt.close()
         plt.plot(self.train_loss)
         plt.savefig('dueling_train_loss_{0}_{1}.jpg'.format(self.network_type, exp_num))
         plt.close()
+	plt.plot(self.total_reward)
+	plt.savefig('dueling_reward_q_{0}_{1}.jpg'.format(self.network_type,exp_num))
+	plt.close()
         #with open('ftdqn_mean_q_{0}_{1}.data'.format(self.network_type, exp_num),'w') as f:
         #    pickle.dump(self.mean_q,f)
         #with open('ftdqn_train_loss_{0}_{1}.data'.format(self.network_type, exp_num),'w') as f:
         #    pickle.dump(self.train_loss,f)
-        #self.q_network.save_weights('ftdqn_source_{0}_{1}.weight'.format(self.network_type, exp_num))
-        #self.qt_network.save_weights('ftdqn_target_{0}_{1}.weight'.format(self.network_type, exp_num))
+    def save_model(self):
+	exp_num=3
+        self.q_network.save_weights('dueling_source_{0}_{1}.weight'.format(self.network_type, exp_num))
+        self.qt_network.save_weights('dueling_target_{0}_{1}.weight'.format(self.network_type, exp_num))
