@@ -932,29 +932,27 @@ class DQNAgent(QNAgent):
             output. They can help you monitor how training is going.
             """
         
-        if self.num_samples % self.train_freq == 0:
-            
-            # generate batch samples for CNN
-            mem_samples = self.memory.sample(self.batch_size)
-            mem_samples = self.atari_proc.process_batch(mem_samples)
-            input_state_batch=np.zeros((self.batch_size, 4, 84, 84))
-            input_nextstate_batch=np.zeros((self.batch_size, 4, 84, 84))
-            input_mask_batch=np.zeros((self.batch_size,self.num_actions))
-            output_target_batch=np.zeros((self.batch_size,self.num_actions))
-            
-            for ind in range(self.batch_size):
-                input_state_batch[ind,:,:,:] = mem_samples[ind].state
-                input_nextstate_batch[ind,:,:,:] = mem_samples[ind].next_state
-                input_mask_batch[ind, mem_samples[ind].action] = 1
-            
-            target_q = self.q_network.predict([input_nextstate_batch, self.input_dummymask_batch],batch_size=1)
-            best_target_q = np.amax(target_q, axis=1)
-            #print 'best Q values of batch'
-            #print best_target_q
-            for ind in range(self.batch_size):
-                output_target_batch[ind, mem_samples[ind].action] = mem_samples[ind].reward + self.gamma*best_target_q[ind]
+        # generate batch samples for CNN
+        mem_samples = copy.deepcopy(self.memory[self.memory.pointer])
+        mem_samples = self.atari_proc.process_batch(mem_samples)
+        input_state_batch=np.zeros((1, 4, 84, 84))
+        input_nextstate_batch=np.zeros((1, 4, 84, 84))
+        input_mask_batch=np.zeros((1,self.num_actions))
+        output_target_batch=np.zeros((1,self.num_actions))
         
-            temp_loss = self.q_network.train_on_batch(x=[input_state_batch, input_mask_batch], y=output_target_batch)
+        for ind in range(1):
+            input_state_batch[ind,:,:,:] = mem_samples[ind].state
+            input_nextstate_batch[ind,:,:,:] = mem_samples[ind].next_state
+            input_mask_batch[ind, mem_samples[ind].action] = 1
+        
+        target_q = self.q_network.predict([input_nextstate_batch, self.input_dummymask_batch],batch_size=1)
+        best_target_q = np.amax(target_q, axis=1)
+	if DEBUG:
+        	print 'best Q values of batch {0}'.format(best_target_q)
+        for ind in range(1):
+            output_target_batch[ind, mem_samples[ind].action] = mem_samples[ind].reward + self.gamma*best_target_q[ind]
+        
+        temp_loss = self.q_network.train_on_batch(x=[input_state_batch, input_mask_batch], y=output_target_batch)
             
 	if self.num_updates % (self.target_update_freq/100) == 0:
             self.train_loss.append(temp_loss)
@@ -967,18 +965,17 @@ class DQNAgent(QNAgent):
             
 
     def save_data(self):
-        
         plt.plot(self.mean_q)
         plt.savefig('dqn_mean_q_{0}.jpg'.format(self.network_type))
         plt.close()
         plt.plot(self.train_loss)
         plt.savefig('dqn_train_loss_{0}.jpg'.format(self.network_type))
         plt.close()
-        with open('dqn_mean_q_{0}.data'.format(self.network_type),'w') as f:
-            pickle.dump(self.mean_q,f)
-        with open('dqn_train_loss_{0}.data'.format(self.network_type),'w') as f:
-            pickle.dump(self.train_loss,f)
-            self.q_network.save_weights('dqn_source_{0}.weight'.format(self.network_type))
+        #with open('dqn_mean_q_{0}.data'.format(self.network_type),'w') as f:
+        #    pickle.dump(self.mean_q,f)
+        #with open('dqn_train_loss_{0}.data'.format(self.network_type),'w') as f:
+        #    pickle.dump(self.train_loss,f)
+        #self.q_network.save_weights('dqn_source_{0}.weight'.format(self.network_type))
 
 
 class DuelingDQNAgent(QNAgent):
