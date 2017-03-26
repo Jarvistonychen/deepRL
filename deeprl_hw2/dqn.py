@@ -336,10 +336,10 @@ class QNAgent:
         self.hist_proc.reset()
         action = self.select_action(policy='burnin')
         nextstate, reward, is_terminal, debug_info = env.step(action)
-        nextstate_history = deepcopy(self.preproc.get_history_for_memory(nextstate))
+        nextstate_history = self.preproc.get_history_for_memory(nextstate)
 
         for step in range(self.num_burn_in):
-            state_history = np.copy(nextstate_history)
+            state_history = nextstate_history
             action = self.select_action(policy='burnin')
             nextstate, reward, is_terminal, debug_info = env.step(action)
             nextstate_history = self.preproc.get_history_for_memory(nextstate)
@@ -375,8 +375,8 @@ class QNAgent:
                                         self.atari_proc.process_reward(reward), \
                                         nextstate_history, \
                                         is_terminal)
-                state_history = np.copy(nextstate_history)
-                state_history_float = np.copy(nextstate_history_float)
+                state_history = nextstate_history
+                state_history_float = nextstate_history_float
                 
                 if self.num_samples % self.train_freq == 0:
                     self.update_policy()
@@ -419,14 +419,14 @@ class QNAgent:
         
             state=env.reset()
             self.hist_proc.reset()
-            state_history = deepcopy(self.preproc.get_history_for_network(state))
+            state_history = self.preproc.get_history_for_network(state)
             
             for step in range(max_episode_length):
                 
                 action = self.select_action(policy='testing',state=[state_history, self.input_dummymask])
                 
                 state, reward, is_terminal, debug_info = env.step(action)
-                state_history = deepcopy(self.preproc.get_history_for_network(state))
+                state_history = self.preproc.get_history_for_network(state)
                 
                 total_reward+=reward
                 
@@ -931,7 +931,7 @@ class DQNAgent(QNAgent):
             """
         
         # generate batch samples for CNN
-        mem_samples = copy.deepcopy(self.memory[self.memory.pointer])
+        mem_samples = self.memory[self.memory.pointer]
         mem_samples = self.atari_proc.process_batch(mem_samples)
         input_state_batch=np.zeros((1, 4, 84, 84))
         input_nextstate_batch=np.zeros((1, 4, 84, 84))
