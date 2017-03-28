@@ -33,6 +33,7 @@ MOMENTUM = 0.8
 MAX_NUM_ITERATIONS=5000000
 ANNEAL_NUM_STEPS = 100000
 
+DEBUG = 0
 
 def get_output_folder(parent_dir, env_name):
     """Return save folder.
@@ -86,11 +87,14 @@ def main():  # noqa: D103
     replay_mem = tfrl.core.ReplayMemory(max_size=1000000, window_length=4)
 
 
-   
-    env = gym.make('SpaceInvaders-v3')
-    assert env is not None
-    #env2 = gym.make('Enduro-v0')
-    
+    game = 'Enduro-v0'
+    env = gym.make(game)
+    eval_env = gym.make(game)
+
+    if DEBUG:
+	    assert env is not None
+	    assert eval_env is not None
+
 ############# six questions; six experiments ##########################
     #dqn_agent =  DQNAgent(network_type 	    	    = 'LINEAR', \#
     #dqn_agent = FTDQNAgent(network_type 	    = 'LINEAR', \#
@@ -116,8 +120,6 @@ def main():  # noqa: D103
 
     dqn_agent.compile(optimizer='Adam', loss_func=mean_huber_loss)
     
-    eval_env = gym.make('SpaceInvaders-v3')
-    assert eval_env is not None
     dqn_agent.fit(env, eval_env, num_iterations=MAX_NUM_ITERATIONS, max_episode_length=10000)
     
 

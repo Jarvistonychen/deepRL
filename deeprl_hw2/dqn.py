@@ -252,16 +252,18 @@ class QNAgent:
         #calculate q-values only for one state
         if(state[0].ndim==3):
             #put the frames of the state in an (4d) array to use the function predict
-            assert state[0].shape==(WINDOW_LENGTH,IMG_ROWS,IMG_COLS) or state[0].shape==(IMG_ROWS,IMG_COLS) or state[0].shape==(NUM_RAND_STATE,IMG_ROWS,IMG_COLS)
-            assert state[1].shape==(1,self.num_actions)
             batch_state = np.zeros((1,WINDOW_LENGTH, IMG_ROWS,IMG_COLS))
             batch_state[0,:,:,:]=state[0]
             q_values =self.q_network.predict([batch_state,state[1]],batch_size=1)
-            assert q_values.shape==(1,self.num_actions)
+	    if DEBUG:
+		    assert state[0].shape==(WINDOW_LENGTH,IMG_ROWS,IMG_COLS) or state[0].shape==(IMG_ROWS,IMG_COLS) or state[0].shape==(NUM_RAND_STATE,IMG_ROWS,IMG_COLS)
+		    assert state[1].shape==(1,self.num_actions)
+		    assert q_values.shape==(1,self.num_actions)
         #calculate q-values for a batch of states
         else:
             q_values =self.q_network.predict(state,batch_size=1)
-            assert q_values.shape==(state[0].shape[0],self.num_actions)
+	    if DEBUG:
+            	assert q_values.shape==(state[0].shape[0],self.num_actions)
         
         return q_values
 
@@ -292,18 +294,20 @@ class QNAgent:
         if policy == 'training':
                 if 'state' in kwargs:
                     state=kwargs['state']
-                    assert len(state)==2
-                    assert state[0].shape==(WINDOW_LENGTH,IMG_ROWS,IMG_COLS)
-                    assert state[1].shape==(1,self.num_actions)
+		    if DEBUG:
+			    assert len(state)==2
+			    assert state[0].shape==(WINDOW_LENGTH,IMG_ROWS,IMG_COLS)
+			    assert state[1].shape==(1,self.num_actions)
                     action=self.training_policy.select_action(self.calc_q_values(kwargs['state']), self.num_updates)
                 else:
                     return self.training_policy.select_action()
         elif policy == 'testing':
                 if 'state' in kwargs:
                     state=kwargs['state']
-                    assert len(state)==2
-                    assert state[0].shape==(WINDOW_LENGTH,IMG_ROWS,IMG_COLS)
-                    assert state[1].shape==(1,self.num_actions)
+		    if DEBUG:
+			    assert len(state)==2
+			    assert state[0].shape==(WINDOW_LENGTH,IMG_ROWS,IMG_COLS)
+			    assert state[1].shape==(1,self.num_actions)
                     
                     action=self.testing_policy.select_action(self.calc_q_values(kwargs['state']))
                 else:
@@ -311,9 +315,10 @@ class QNAgent:
         elif policy == 'burnin':
                 if 'state' in kwargs:
                     state=kwargs['state']
-                    assert len(state)==2
-                    assert state[0].shape==(WINDOW_LENGTH,IMG_ROWS,IMG_COLS)
-                    assert state[1].shape==(1,self.num_actions)
+		    if DEBUG:
+			    assert len(state)==2
+			    assert state[0].shape==(WINDOW_LENGTH,IMG_ROWS,IMG_COLS)
+			    assert state[1].shape==(1,self.num_actions)
                     action=self.burnin_policy.select_action(self.calc_q_values(kwargs['state']))
                 else:
                     return self.burnin_policy.select_action()
@@ -350,7 +355,8 @@ class QNAgent:
         
         #burn-in the replay memory
         next_state=env.reset()
-        assert next_state is not None
+	if DEBUG:
+		assert next_state is not None
 
         for step in range(self.num_burn_in):
             
@@ -359,8 +365,9 @@ class QNAgent:
             next_state, reward, is_terminal, debug_info = env.step(action)
             
             mem_proc_state=self.atari_proc.process_frame_for_memory(state)
-            assert mem_proc_state is not None
-            assert mem_proc_state.shape == (IMG_ROWS,IMG_COLS)
+	    if DEBUG:
+		    assert mem_proc_state is not None
+		    assert mem_proc_state.shape == (IMG_ROWS,IMG_COLS)
             
             #apply action while being on state, receive reward move to next state which is_terminal
             self.memory.append(mem_proc_state, \
@@ -375,13 +382,16 @@ class QNAgent:
         
         #get some random states that will be used for the evaluation of the q-value achieved by the network
         eval_samples = self.memory.sample(NUM_RAND_STATE)
-        assert len(eval_samples)==NUM_RAND_STATE
+	if DEBUG:
+		assert len(eval_samples)==NUM_RAND_STATE
         
         for idx in range(NUM_RAND_STATE):
             self.eval_states[idx,:,:,:] = self.atari_proc.process_state_for_network(eval_samples[idx].state)
-            assert self.eval_states[idx,:,:,:].shape==(WINDOW_LENGTH,IMG_ROWS,IMG_COLS)
+	    if DEBUG:
+		    assert self.eval_states[idx,:,:,:].shape==(WINDOW_LENGTH,IMG_ROWS,IMG_COLS)
 
-        assert self.eval_states.shape==(NUM_RAND_STATE,WINDOW_LENGTH,IMG_ROWS,IMG_COLS)
+	if DEBUG:
+		assert self.eval_states.shape==(NUM_RAND_STATE,WINDOW_LENGTH,IMG_ROWS,IMG_COLS)
   
         while self.num_samples < num_iterations:
         
@@ -395,21 +405,24 @@ class QNAgent:
                 
                 #convert to uint8, prepare the state to be stored in frame, and buffer
                 mem_proc_state=self.atari_proc.process_frame_for_memory(state)
-                assert mem_proc_state is not None
-                assert mem_proc_state.shape==(IMG_ROWS,IMG_COLS)
+	        if DEBUG:
+			assert mem_proc_state is not None
+			assert mem_proc_state.shape==(IMG_ROWS,IMG_COLS)
                 
                 #store the new observation in the buffer, it will be used for the selection of the next action
                 recent_samples.append(mem_proc_state)
                 
                 #merge samples in the buffer to create the network state
                 net_proc_state=self.atari_proc.process_samples_for_network(recent_samples)
-                assert net_proc_state.shape==(WINDOW_LENGTH,IMG_ROWS,IMG_COLS)
+	        if DEBUG:
+			assert net_proc_state.shape==(WINDOW_LENGTH,IMG_ROWS,IMG_COLS)
                 
                 action = self.select_action(policy='training',state=[net_proc_state, self.input_dummymask])
                 
                 #apply the action to the environment, get reward and nextstate
                 nextstate, reward, is_terminal, debug_info = env.step(action)
-                assert nextstate is not None
+	        if DEBUG:
+			assert nextstate is not None
                 
                 
                 #append the new sample (state, action, reward, is next state terminal) in the memory
@@ -481,7 +494,8 @@ class QNAgent:
             
             #keep the frames of the state in a ring buffer
             recent_samples = RingBuffer(WINDOW_LENGTH)
-            assert recent_samples is not None
+	    if DEBUG:
+		    assert recent_samples is not None
         
             print 'Evaluating episode {0}'.format(episode_idx)
             for step in range(max_episode_length):
@@ -489,15 +503,17 @@ class QNAgent:
                
                 #convert to uint8, prepare the state to be stored in frame, and buffer
                 mem_proc_state=self.atari_proc.process_frame_for_memory(state)
-                assert mem_proc_state is not None
-                assert mem_proc_state.shape==(IMG_ROWS,IMG_COLS)
+	        if DEBUG:
+			assert mem_proc_state is not None
+			assert mem_proc_state.shape==(IMG_ROWS,IMG_COLS)
                 
                 #store the new observation in the buffer, it will be used for the selection of the next action
                 recent_samples.append(mem_proc_state)
                 
                 #merge samples in the buffer to create the network state
                 net_proc_state=self.atari_proc.process_samples_for_network(recent_samples)
-                assert net_proc_state.shape==(WINDOW_LENGTH,IMG_ROWS,IMG_COLS)
+	        if DEBUG:
+			assert net_proc_state.shape==(WINDOW_LENGTH,IMG_ROWS,IMG_COLS)
                 
                 #select the next action
                 action = self.select_action(policy='testing',state=[net_proc_state, self.input_dummymask])
@@ -702,27 +718,32 @@ class FTDQNAgent(QNAgent):
         for idx in range(self.batch_size):
             
             #create a 4d array with the states
-            assert mem_samples[idx].state[0].shape==(IMG_ROWS,IMG_COLS)
-            assert len(mem_samples[idx].state)==WINDOW_LENGTH
+	    if DEBUG:
+		    assert mem_samples[idx].state[0].shape==(IMG_ROWS,IMG_COLS)
+		    assert len(mem_samples[idx].state)==WINDOW_LENGTH
             input_state_batch[idx,:,:,:] = self.atari_proc.process_state_for_network(mem_samples[idx].state)
             
             #create a 4d array with the states
-            assert mem_samples[idx].next_state[0].shape==(IMG_ROWS,IMG_COLS)
-            assert len(mem_samples[idx].next_state)==WINDOW_LENGTH
+	    if DEBUG:
+		    assert mem_samples[idx].next_state[0].shape==(IMG_ROWS,IMG_COLS)
+		    assert len(mem_samples[idx].next_state)==WINDOW_LENGTH
             input_nextstate_batch[idx,:,:,:] = self.atari_proc.process_state_for_network(mem_samples[idx].next_state)
             
             #activate the output of the applied action
             input_mask_batch[idx, mem_samples[idx].action] = 1
         
-        assert input_state_batch.shape==(self.batch_size,WINDOW_LENGTH,IMG_ROWS,IMG_COLS)
-        assert input_nextstate_batch.shape==(self.batch_size,WINDOW_LENGTH,IMG_ROWS,IMG_COLS)
+	if DEBUG:
+		assert input_state_batch.shape==(self.batch_size,WINDOW_LENGTH,IMG_ROWS,IMG_COLS)
+		assert input_nextstate_batch.shape==(self.batch_size,WINDOW_LENGTH,IMG_ROWS,IMG_COLS)
         
         #on the next state, chose the best predicted q-value on the fixed-target network
         target_q = self.qt_network.predict([input_nextstate_batch, self.input_dummymask_batch],batch_size=self.batch_size)
-        assert target_q.shape==(self.batch_size,self.num_actions)
+	if DEBUG:
+		assert target_q.shape==(self.batch_size,self.num_actions)
         best_target_q = np.amax(target_q, axis=1)
         
-        assert best_target_q.shape==(self.batch_size,)
+	if DEBUG:
+		assert best_target_q.shape==(self.batch_size,)
         
         
         # if DEBUG:
@@ -902,38 +923,46 @@ class DoubleDQNAgent(QNAgent):
         for idx in range(self.batch_size):
         
             #create a 4d array with the states
-            assert mem_samples[idx].state[0].shape==(IMG_ROWS,IMG_COLS)
-            assert len(mem_samples[idx].state)==WINDOW_LENGTH
+	    if DEBUG:
+		    assert mem_samples[idx].state[0].shape==(IMG_ROWS,IMG_COLS)
+		    assert len(mem_samples[idx].state)==WINDOW_LENGTH
             input_state_batch[idx,:,:,:] = self.atari_proc.process_state_for_network(mem_samples[idx].state)
             
             #create a 4d array with the states
-            assert mem_samples[idx].next_state[0].shape==(IMG_ROWS,IMG_COLS)
-            assert len(mem_samples[idx].next_state)==WINDOW_LENGTH
+	    if DEBUG:
+		    assert mem_samples[idx].next_state[0].shape==(IMG_ROWS,IMG_COLS)
+		    assert len(mem_samples[idx].next_state)==WINDOW_LENGTH
             input_nextstate_batch[idx,:,:,:] = self.atari_proc.process_state_for_network(mem_samples[idx].next_state)
             
             #activate the output of the applied action
             input_mask_batch[idx, mem_samples[idx].action] = 1
         
-        assert input_state_batch.shape==(self.batch_size,WINDOW_LENGTH,IMG_ROWS,IMG_COLS)
-        assert input_nextstate_batch.shape==(self.batch_size,WINDOW_LENGTH,IMG_ROWS,IMG_COLS)
+	if DEBUG:
+		assert input_state_batch.shape==(self.batch_size,WINDOW_LENGTH,IMG_ROWS,IMG_COLS)
+		assert input_nextstate_batch.shape==(self.batch_size,WINDOW_LENGTH,IMG_ROWS,IMG_COLS)
 
         #find the best action that can be applied on nextstate, given the q-values predicted by the network
         aux_q = self.q_network.predict([input_nextstate_batch, self.input_dummymask_batch],batch_size=1)
-        assert aux_q.shape==(self.batch_size,self.num_actions)
+	if DEBUG:
+		assert aux_q.shape==(self.batch_size,self.num_actions)
         best_actions=np.argmax(aux_q,axis=1)
-        assert best_actions.shape==(self.batch_size,)
+	if DEBUG:
+		assert best_actions.shape==(self.batch_size,)
         
         #keep the q-value of the target network, corresponding to the best actions
         target_q = self.qt_network.predict([input_nextstate_batch, self.input_dummymask_batch],batch_size=1)
-        assert target_q.shape==(self.batch_size,self.num_actions)
+	if DEBUG:
+		assert target_q.shape==(self.batch_size,self.num_actions)
         best_target_q = target_q[range(self.batch_size), best_actions]
-        assert best_target_q.shape==(self.batch_size,)
+	if DEBUG:
+		assert best_target_q.shape==(self.batch_size,)
     
         #target q-value for the state
         for ind in range(self.batch_size):
             output_target_batch[ind, mem_samples[ind].action] = mem_samples[ind].reward + self.gamma*best_target_q[ind]
 
-        assert output_target_batch.shape==(self.batch_size,self.num_actions)
+	if DEBUG:
+		assert output_target_batch.shape==(self.batch_size,self.num_actions)
         
         loss = self.q_network.train_on_batch(x=[input_state_batch, input_mask_batch], y=output_target_batch)
         self.train_loss.append(loss)
