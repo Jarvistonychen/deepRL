@@ -1,45 +1,9 @@
 """Core classes."""
-
-frame_int = 4
-frame_resize = 84
+from collections import namedtuple
+import random
 import numpy as np
 
-class Sample:
-    """Represents a reinforcement learning sample.
-
-    Used to store observed experience from an MDP. Represents a
-    standard `(s, a, r, s', terminal)` tuple.
-
-    Note: This is not the most efficient way to store things in the
-    replay memory, but it is a convenient class to work with when
-    sampling batches, or saving and loading samples while debugging.
-
-    Parameters
-    ----------
-    state: array-like
-      Represents the state of the MDP before taking an action. In most
-      cases this will be a numpy array.
-    action: int, float, tuple
-      For discrete action domains this will be an integer. For
-      continuous action domains this will be a floating point
-      number. For a parameterized action MDP this will be a tuple
-      containing the action and its associated parameters.
-    reward: float
-      The reward received for executing the given action in the given
-      state and transitioning to the resulting state.
-    next_state: array-like
-      This is the state the agent transitions to after executing the
-      `action` in `state`. Expected to be the same type/dimensions as
-      the state.
-    is_terminal: boolean
-      True if this action finished the episode. False otherwise.
-    """
-
-    state = np.zeros((frame_int, frame_resize, frame_resize))
-    action = 0
-    reward = 0
-    next_state = np.zeros((frame_int, frame_resize, frame_resize))
-    is_terminal = False
+Sample = namedtuple('Experience', 'state, action, reward, next_state, terminal')
 
 
 class Preprocessor:
@@ -112,8 +76,6 @@ class Preprocessor:
           modified in any manner.
 
         """
-
-	
         return state
 
     def process_batch(self, samples):
@@ -163,6 +125,34 @@ class Preprocessor:
         """
         pass
 
+class RingBuffer(object):
+    
+    def __init__(self, maxlen):
+        self.maxlen = maxlen
+        self.start = 0
+        self.length = 0
+        self.data = [None for _ in range(maxlen)]
+    
+
+    def __len__(self):
+        return self.length
+        
+    def __getitem__(self, idx):
+        if idx < 0 or idx >= self.length:
+            raise KeyError()
+        return self.data[(self.start + idx) % self.maxlen]
+        
+    def append(self, v):
+        if self.length < self.maxlen:
+            # We have space, simply increase the length.
+            self.length += 1
+        elif self.length == self.maxlen:
+            # No space, "remove" the first item.
+            self.start = (self.start + 1) % self.maxlen
+        else:
+            # This should never happen.
+            raise RuntimeError()
+        self.data[(self.start + self.length - 1) % self.maxlen] = v
 
 class ReplayMemory:
     """Interface for replay memories.
@@ -203,7 +193,11 @@ class ReplayMemory:
     clear()
       Reset the memory. Deletes all references to the samples.
     """
-    def __init__(self, max_size=1e6, window_length=4):
+    
+
+
+
+    def __init__(self, max_size, window_length):
         """Setup memory.
 
         You should specify the maximum size o the memory. Once the
@@ -214,35 +208,100 @@ class ReplayMemory:
         We recommend using a list as a ring buffer. Just track the
         index where the next sample should be inserted in the list.
         """
-	self.max_size = max_size
-	self.window_length = window_length
-	self.pointer = 0
-	self.memory = [Sample() for i in range(max_size)]
+        
+        self.max_size=max_size
+        self.window_length=window_length
+        
+        self.actions = RingBuffer(max_size)
+        self.rewards = RingBuffer(max_size)
+        self.terminal = RingBuffer(max_size)
+        self.observations = RingBuffer(max_size)
+        
+        
+        pass
 
-    def append(self, state, action, reward, next_state, is_terminal):
-	#sample = Sample()
-	sample = self.memory[self.pointer]
-	sample.state = np.copy(state)
-	sample.action = action
-	sample.reward = reward
-	sample.next_state = np.copy(next_state)
-	sample.is_terminal = is_terminal
-	if self.pointer >= max_size - 1:
-		self.pointer = 0
-	else:
-		self.pointer += 1
+    @property
+    def nb_entries(self):
+        return self.observations.length
 
-    def end_episode(self, final_state, is_terminal):
-        raise NotImplementedError('This method should be overridden')
+    def append(self, state, action, reward,is_terminal):
+        self.observations.append(state)
+        self.actions.append(action)
+        self.rewards.append(reward)
+        self.terminal.append(is_terminal)
+
 
     def sample(self, batch_size, indexes=None):
-	samples = []
-	rand_max = np.arange(max_size)
-	rand_max = np.random.shuffle(rand_max)
-	for ind in range(batch_size):
-		samples.append(self.memory[rand_max[ind]])
-	return samples
+        
+        if indexes is None:
+        #if indexes is None draw random samples, each index refers to the last frame of next_state
+            indexes = random.sample(xrange(2, self.nb_entries), batch_size)
+      
+      
+        assert 2<= np.min(indexes)< self.nb_entries
+        
+        assert len(indexes) == batch_size
+            
+        # state = [idx-wl, idx-wl+1, idx-wl+2,...,idx-1], wl=window length
+        # next_state = [idx-wl+1,.....,idx]
+        # make sure idx_1 is not terminal so that state next state belong to the same episode
+        # if one of the frames <idx-1 is terminal just zero it
+        
+        samples = []
+
+        for idx in indexes:
+            
+            #the last frame (at idx-1) of state is terminal (indicated by observation at idx-2), new episode begins for last frame of next_state (at idx)
+            terminal=self.terminal[idx-2]
+            while terminal:
+                idx= random.sample(xrange(2,self.nb_entries),1)
+                idx=idx[0]
+                
+                assert 2<=idx<self.nb_entries
+                #print idx
+                
+                terminal=self.terminal[idx-2]
+
+            #form the state
+            
+            state = [self.observations[idx-1]] #we know that this is not the last frame of episode and idx-1>0
+            for offset in range(2,self.window_length+1):
+                cur_idx = idx - offset
+                
+                #if we moved to a frame which was added after the frame at idx, or
+                #we can't tell if the current frame is terminal (from its previous frame, which has been overwritten)
+                #or if the frame it's terminal
+                if cur_idx < 0 or  cur_idx-1 < 0 or self.terminal[cur_idx - 1]:
+                    break
+
+                state.insert(0,self.observations[cur_idx])
+
+            #fill-in the state with zeroes in case it is needed
+
+            while len(state) < self.window_length:
+                state.insert(0, np.zeros(state[0].shape))
+                    
+            action = self.actions[idx - 1]
+            reward = self.rewards[idx - 1]
+            next_terminal = self.terminal[idx - 1]
+                
+            next_state = [np.copy(x) for x in state[1:]]
+            next_state.append(self.observations[idx])
+    
+            assert len(state) == self.window_length
+            assert len(next_state) == len(state)
+            samples.append(Sample(state=state, action=action, reward=reward,
+                                          next_state=next_state, terminal=next_terminal))
+                
+        assert len(samples) == batch_size
+        return samples
+    
 
     def clear(self):
-	self.pointer = 0
-	self.memory = [Sample() for i in range(max_size)]
+        del self.observations
+        del self.actions
+        del self.rewards
+        del self.terminals
+
+        self.close()
+

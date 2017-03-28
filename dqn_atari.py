@@ -1,100 +1,37 @@
 #!/usr/bin/env python
 """Run Atari Environment with DQN."""
 
-
-
-
 import argparse
 import os
 import random
 
 import numpy as np
 
-import tensorflow as tf
-
-from keras.layers import (Activation, Convolution2D, Dense, Flatten, Input,
-                          Permute)
-from keras.layers.normalization import BatchNormalization
-from keras.models import Model
-from keras.optimizers import Adam
-
-
-#import skimage as skimage
-#from skimage import transform, color, exposure
-#from skimage.transform import rotate
-#from skimage.viewer import ImageViewer
 
 import deeprl_hw2 as tfrl
 from deeprl_hw2.dqn import DQNAgent
+from deeprl_hw2.dqn import DoubleDQNAgent
+from deeprl_hw2.dqn import FTDQNAgent
 from deeprl_hw2.objectives import mean_huber_loss
+
 
 import gym
 
 
-def create_model(window, input_shape, num_actions, model_name='q_network'):  # noqa: D103
-    
-    """Create the Q-network model.
-        
-        Use Keras to construct a keras.models.Model instance (you can also
-        use the SequentialModel class).
-        
-        We highly recommend that you use tf.name_scope as discussed in
-        class when creating the model and the layers. This will make it
-        far easier to understnad your network architecture if you are
-        logging with tensorboard.
-        
-        Parameters
-        ----------
-        window: int
-        Each input to the network is a sequence of frames. This value
-        defines how many frames are in the sequence.
-        input_shape: tuple(int, int)
-        The expected input image size.
-        num_actions: int
-        Number of possible actions. Defined by the gym environment.
-        model_name: str
-        Useful when debugging. Makes the model show up nicer in tensorboard.
-        
-        Returns
-        -------
-        keras.models.Model
-        The Q-model.
-        """
-    
-        model = Sequential()
-        
-        
-        #TODO: do we need this???See
-        #http://stackoverflow.com/questions/34716454/where-do-i-call-the-batchnormalization-function-in-keras
-        model.add(BatchNormalization())
-
-        model.add(Convolution2D(16, 8, 8, subsample=(4, 4), border_mode='same',input_shape=(window,input_shape[0],input_shape[1])))
-        model.add(BatchNormalization())
-        model.add(Activation('relu'))
-        model.add(Dropout(0.5))
-        
-        model.add(Convolution2D(32, 4, 4, subsample=(2, 2), border_mode='same'))
-        model.add(BatchNormalization())
-        model.add(Activation('relu'))
-        model.add(Dropout(0.5))
-        
-        model.add(Dense(256))
-        model.add(BatchNormalization())
-        model.add(Activation('relu'))
-        model.add(Dropout(0.5))
-        
-        model.add(Dense(num_actions))
-        
-        adam = Adam(lr=LEARNING_RATE)
-        
-        #change the loss in order to have two networks
-        model.compile(loss='mse',optimizer=adam)
-        
-        return model
-        
-        pass
-    
-
+GAMMA = 0.99
+ALPHA = 1e-4
+EPSILON = 0.05
+REPLAY_BUFFER_SIZE = 1000000
+BATCH_SIZE = 32
+IMG_ROWS , IMG_COLS = 84, 84
+WINDOW = 4
+TARGET_FREQ = 10000
+NUM_BURN_IN = 3000
+TRAIN_FREQ=4
+#TRAIN_FREQ=1000
+MOMENTUM = 0.8
+MAX_NUM_ITERATIONS=5000000
+ANNEAL_NUM_STEPS = 100000
 
 
 def get_output_folder(parent_dir, env_name):
@@ -142,43 +79,47 @@ def main():  # noqa: D103
     parser.add_argument('--seed', default=0, type=int, help='Random seed')
 
     args = parser.parse_args()
-    #TODO: input_shape as argument?
-    #args.input_shape = tuple(args.input_shape)
 
-    #args.output = get_output_folder(args.output, args.env)
 
-    env = gym.make('Enduro-v0')
-    #q_network=create_model(WINDOW,tuple(IMG_ROWS,IMG_COLS),env.action_space.n)
 
-    #sess = tf.Session()
-    #from keras import backend as K
-    #K.set_session(sess)
+    atari_preproc = tfrl.preprocessors.AtariPreprocessor()
+    replay_mem = tfrl.core.ReplayMemory(max_size=1000000, window_length=4)
 
-    initial_state = env.reset()
-    env.render()
-    rewards = []
-    num_steps = 0
 
-    while True:
-	    action = env.action_space.sample()
-	    print env.action_space
-	    nextstate, reward, is_terminal, debug_info = env.step(action)
-	    print nextstate.shape
-	    env.render()
-	    rewards.append(reward)
-	    state = nextstate
-	    num_steps += 1
-
-	    if is_terminal:
-		break
-
-    # here is where you should start up a session,
-    # create your DQN agent, create your model, etc.
-    # then you can run your fit method.
+   
+    env = gym.make('SpaceInvaders-v3')
+    assert env is not None
+    #env2 = gym.make('Enduro-v0')
     
+############# six questions; six experiments ##########################
+    #dqn_agent =  DQNAgent(network_type 	    	    = 'LINEAR', \#
+    #dqn_agent = FTDQNAgent(network_type 	    = 'LINEAR', \#
+    #dqn_agent = DoubleDQNAgent(network_type 	    = 'LINEAR', \#
+    
+    dqn_agent = DoubleDQNAgent(network_type 	    = 'DEEP', \
+    #dqn_agent = DuelingDQNAgent(network_type 	    = 'DEEP', \#
+    
+    
+    # dqn_agent = FTDQNAgent(network_type = 'DEEP', \#
+                           num_actions = env.action_space.n, \
+                           preprocessors = atari_preproc, \
+                           memory = replay_mem, \
+                           burnin_policy = tfrl.policy.UniformRandomPolicy(num_actions = env.action_space.n),\
+                           testing_policy   = tfrl.policy.GreedyEpsilonPolicy(0.05,env.action_space.n), \
+                           training_policy    = tfrl.policy.LinearDecayGreedyEpsilonPolicy(env.action_space.n,1.0, 0.05,ANNEAL_NUM_STEPS), \
+                           gamma = GAMMA, \
+                           alpha = ALPHA, \
+                           target_update_freq = TARGET_FREQ, \
+                           num_burn_in = NUM_BURN_IN, \
+                           train_freq = TRAIN_FREQ, \
+                           batch_size = BATCH_SIZE )
 
-
-
+    dqn_agent.compile(optimizer='Adam', loss_func=mean_huber_loss)
+    
+    eval_env = gym.make('SpaceInvaders-v3')
+    assert eval_env is not None
+    dqn_agent.fit(env, eval_env, num_iterations=MAX_NUM_ITERATIONS, max_episode_length=10000)
+    
 
 
 if __name__ == '__main__':

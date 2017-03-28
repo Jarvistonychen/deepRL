@@ -7,6 +7,7 @@ in your code.
 import numpy as np
 #import attr
 
+DEBUG = 0
 
 class Policy:
     """Base class representing an MDP policy.
@@ -21,7 +22,7 @@ class Policy:
     random action will be chosen.
     """
 
-    def select_action(self, **kwargs):
+    def select_action(self):
         """Used by agents to select actions.
 
         Returns
@@ -63,8 +64,10 @@ class UniformRandomPolicy(Policy):
         int:
           Action index in range [0, num_actions)
         """
-        #TODO:changed
-        return np.random.randint(0, self.num_actions-1)
+        action = np.random.randint(0, self.num_actions)
+	if DEBUG:
+		print 'In uniform policy: action {0}'.format(action)
+	return action
 
     def get_config(self):  # noqa: D102
         return {'num_actions': self.num_actions}
@@ -77,7 +80,10 @@ class GreedyPolicy(Policy):
     """
 
     def select_action(self, q_values):  # noqa: D102
-        return np.argmax(q_values)
+        action = np.argmax(q_values)
+	if DEBUG:
+		print 'In greedy policy: action {0}'.format(action)
+	return action
 
 
 class GreedyEpsilonPolicy(Policy):
@@ -92,8 +98,9 @@ class GreedyEpsilonPolicy(Policy):
      Initial probability of choosing a random action. Can be changed
      over time.
     """
-    def __init__(self, epsilon):
+    def __init__(self, epsilon,num_actions):
         self.epsilon = epsilon
+        self.num_actions=num_actions
 
     def select_action(self, q_values):
         """Run Greedy-Epsilon for the given Q-values.
@@ -109,14 +116,15 @@ class GreedyEpsilonPolicy(Policy):
         int:
           The action index chosen.
         """
-        rand_num = np.random.rand()
-        num_actions = q_values.shape[0]
-        if np.random.uniform() < self.epsilon
-           action = np.random.random_integers(0, num_actions-1)
-        else:
-            action = np.argmax(q_values)
-        
-        return action
+	rand_num = np.random.rand()
+	if rand_num < self.epsilon:
+		action =  np.random.randint(self.num_actions)
+	else:
+		action = np.argmax(q_values)
+	
+	if DEBUG:
+		print 'GreedyEpsilon: epsilon {0} action {1}'.format(self.epsilon, action)
+	return action
 
 
 class LinearDecayGreedyEpsilonPolicy(Policy):
@@ -136,16 +144,14 @@ class LinearDecayGreedyEpsilonPolicy(Policy):
 
     """
 
-    def __init__(self, start_value, end_value, num_steps):  # noqa: D102
-        
-        self.policy=GreedyEpsilonPolicy(start_value)
+    def __init__(self,num_actions,start_value, end_value,
+                 num_steps):  # noqa: D102
+        self.policy=GreedyEpsilonPolicy(start_value,num_actions)
         self.end_value = end_value
         self.start_value = start_value
         self.num_steps = num_steps
-        
-        pass
 
-    def select_action(self,step,**kwargs):
+    def select_action(self, q_values, num_update):
         """Decay parameter and select action.
 
         Parameters
@@ -160,16 +166,15 @@ class LinearDecayGreedyEpsilonPolicy(Policy):
         Any:
           Selected action.
         """
-        # Linear annealed epsilon=x: f(x) = ax + b.
+	# Linear annealed epsilon=x: f(x) = ax + b.
         a = -float(self.start_value - self.end_value) / float(self.num_steps)
         b = float(self.start_value)
-        self.epsilon = max(self.start_value, a * float(step) + b)
-        
-        return self.policy.select_action(**kwargs)
-        
-        pass
+        self.policy.epsilon = max(self.end_value, a * float(num_update) + b)
+        action = self.policy.select_action(q_values)
+	if DEBUG:
+		print 'LinearDecay: epsilon {0} action {1}'.format(self.policy.epsilon,action)
+	return action
 
     def reset(self):
-        """Start the decay over at the start value."""
+	"""Start the decay over at the start value."""
         self.policy.epsilon=start_value
-        pass
