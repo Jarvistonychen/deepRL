@@ -16,6 +16,7 @@ from deeprl_hw2.objectives import mean_huber_loss
 
 
 import gym
+from gym import wrappers
 
 
 GAMMA = 0.99
@@ -72,6 +73,7 @@ def get_output_folder(parent_dir, env_name):
     return parent_dir
 
 
+
 def main():  # noqa: D103
     parser = argparse.ArgumentParser(description='Run DQN on Atari Enduro')
     parser.add_argument('--env', default='Enduro-v0', help='Atari env name')
@@ -87,24 +89,24 @@ def main():  # noqa: D103
     replay_mem = tfrl.core.ReplayMemory(max_size=1000000, window_length=4)
 
 
+
+
+############# six questions; six experiments ##########################
+    ## agent can be DoubleDQNAgent, DQNAgent,FTDQNAgent,DuelingDQNAgent
+    agent = 'DoubleDQNAgent'
+    ## network can be LINEAR, DEEP
+    network = 'LINEAR'
     game = 'Enduro-v0'
     env = gym.make(game)
     eval_env = gym.make(game)
+    eval_env = wrappers.Monitor(eval_env,'./video/{0}_{1}'.format(agent,network))
 
     if DEBUG:
 	    assert env is not None
 	    assert eval_env is not None
 
-############# six questions; six experiments ##########################
-    #dqn_agent =  DQNAgent(network_type 	    	    = 'LINEAR', \#
-    #dqn_agent = FTDQNAgent(network_type 	    = 'LINEAR', \#
-    #dqn_agent = DoubleDQNAgent(network_type 	    = 'LINEAR', \#
-    
-    dqn_agent = DoubleDQNAgent(network_type 	    = 'DEEP', \
-    #dqn_agent = DuelingDQNAgent(network_type 	    = 'DEEP', \#
-    
-    
-    # dqn_agent = FTDQNAgent(network_type = 'DEEP', \#
+    dqn_agent = getattr(tfrl.dqn,agent)(network_type = network, \
+			    agent = agent, \
                            num_actions = env.action_space.n, \
                            preprocessors = atari_preproc, \
                            memory = replay_mem, \
@@ -118,7 +120,7 @@ def main():  # noqa: D103
                            train_freq = TRAIN_FREQ, \
                            batch_size = BATCH_SIZE )
 
-    dqn_agent.compile(optimizer='Adam', loss_func=mean_huber_loss)
+    dqn_agent.compile(optimizer='Adam', loss_func='mse')
     
     dqn_agent.fit(env, eval_env, num_iterations=MAX_NUM_ITERATIONS, max_episode_length=10000)
     

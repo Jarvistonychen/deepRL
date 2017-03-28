@@ -72,6 +72,7 @@ class QNAgent:
     """
     def __init__(self,
                  network_type,
+		 agent,
                  num_actions,
                  preprocessor,
                  memory,
@@ -88,9 +89,9 @@ class QNAgent:
 
 
         self.network_type 	= network_type
+        self.agent		= agent
         self.num_actions	= num_actions
         self.atari_proc  	= preprocessor
-     
 
         print 'model summary'
    
@@ -442,11 +443,11 @@ class QNAgent:
                     #check if it's time to evaluate the network
                     if self.num_updates % EVALUATION_FREQUENCY == 0:
                         #compute the reward, average episode length achieved in new episodes by the current agent
-                        self.evaluate(eval_env,20,max_episode_length)
+                        self.evaluate(eval_env,10,max_episode_length)
                         #calculate the q-values on the random states
                         self.mean_q.append(self.eval_avg_q())
                         #plot average-per-episod reward, average episode length, loss, q-values
-                        self.plot_eval_results()
+                        self.plot_eval_results(self.agent,1000)
             
                 #increase the total number (across all episodes) of interactions with the environment
                 self.num_samples += 1
@@ -520,6 +521,10 @@ class QNAgent:
                 
                 #compute the next state, the reward
                 state, reward, is_terminal, debug_info = env.step(action)
+
+		if episode_idx == num_spisodes-1:
+			env.render()
+			print(state)
                 
                 
                 total_reward+=reward
@@ -559,8 +564,29 @@ class QNAgent:
     def save_model(self):
         raise NotImplementedError('This method should be overriden.')
     
-    def plot_eval_results(self):
-        raise NotImplementedError('This method should be overriden.')
+    def plot_eval_results(self,agent,move_window_len):
+    
+        print self.mean_q
+        plt.plot(self.mean_q)
+        plt.savefig('{1}_mean_q_{0}.jpg'.format(self.network_type,agent))
+        plt.close()
+        plt.plot(self.total_reward)
+        plt.savefig('{1}_reward_q_{0}.jpg'.format(self.network_type,agent))
+        plt.close()
+        plt.plot(self.episode_length)
+        plt.savefig('{1}_episode_length_q_{0}.jpg'.format(self.network_type,agent))
+        plt.close()
+        plt.plot(self.train_loss)
+        plt.plot(np.convolve(self.train_loss,np.ones(move_window_len),'valid')/move_window_len)
+        plt.savefig('{1}_train_loss_length_q_{0}.jpg'.format(self.network_type,agent))
+        plt.close()
+
+ 	with open('{1}_mean_q_{0}.data'.format(self.network_type,agent),'w') as f:
+            pickle.dump(self.mean_q,f)
+ 	with open('{1}_reward_q_{0}.data'.format(self.network_type,agent),'w') as f:
+            pickle.dump(self.total_reward,f)
+        with open('{1}_train_loss_{0}.data'.format(self.network_type,agent),'w') as f:
+            pickle.dump(self.train_loss,f)
     
     def compile(self, optimizer, loss_func):
         """Setup all of the TF graph variables/ops.
@@ -623,6 +649,7 @@ class FTDQNAgent(QNAgent):
         """
     def __init__(self,
                  network_type,
+		 agent,
                  num_actions,
                  preprocessors,
                  memory,
@@ -637,7 +664,7 @@ class FTDQNAgent(QNAgent):
                  eval_freq=EVALUATION_FREQUENCY,
                  batch_size=BATCH_SIZE):
 
-        QNAgent.__init__(self,network_type,num_actions,preprocessors,memory,burnin_policy,training_policy,testing_policy,gamma,alpha,target_update_freq,num_burn_in,train_freq,eval_freq,batch_size)
+        QNAgent.__init__(self,network_type,agent,num_actions,preprocessors,memory,burnin_policy,training_policy,testing_policy,gamma,alpha,target_update_freq,num_burn_in,train_freq,eval_freq,batch_size)
 
         if network_type=='LINEAR':
           #fixed-target network
@@ -767,23 +794,6 @@ class FTDQNAgent(QNAgent):
         self.q_network.save_weights('ftdqn_source_{0}.weight'.format(self.network_type))
         self.qt_network.save_weights('ftdqn_target_{0}.weight'.format(self.network_type))
 
-    def plot_eval_results(self):
-    
-    
-        print self.mean_q
-        plt.plot(self.mean_q)
-        plt.savefig('ftdqn_mean_q_{0}.jpg'.format(self.network_type))
-        plt.close()
-        plt.plot(self.total_reward)
-        plt.savefig('ftdqn_reward_q_{0}.jpg'.format(self.network_type))
-        plt.close()
-        plt.plot(self.episode_length)
-        plt.savefig('ftdqn_episode_length_q_{0}.jpg'.format(self.network_type))
-        plt.close()
-        
-        plt.plot(self.train_loss)
-        plt.savefig('ftdqn_train_loss_length_q_{0}.jpg'.format(self.network_type))
-        plt.close()
 
 class DoubleDQNAgent(QNAgent):
     
@@ -826,6 +836,7 @@ class DoubleDQNAgent(QNAgent):
         """
     def __init__(self,
                  network_type,
+		 agent,
                  num_actions,
                  preprocessors,
                  memory,
@@ -840,7 +851,7 @@ class DoubleDQNAgent(QNAgent):
                  eval_freq=EVALUATION_FREQUENCY,
                  batch_size=BATCH_SIZE):
         
-        QNAgent.__init__(self,network_type,num_actions,preprocessors,memory,burnin_policy,training_policy,testing_policy,gamma,alpha,target_update_freq,num_burn_in,train_freq,eval_freq,batch_size)
+        QNAgent.__init__(self,network_type,agent,num_actions,preprocessors,memory,burnin_policy,training_policy,testing_policy,gamma,alpha,target_update_freq,num_burn_in,train_freq,eval_freq,batch_size)
         
         if network_type=='LINEAR':
             self.qt_network  	= self.create_linear_model(window = WINDOW_LENGTH, \
@@ -978,23 +989,6 @@ class DoubleDQNAgent(QNAgent):
         self.q_network.save_weights('doubledqn_source_{0}.weight'.format(self.network_type))
         self.qt_network.save_weights('doubledqn_target_{0}.weight'.format(self.network_type))
     
-    def plot_eval_results(self):
-        
-        
-        print self.mean_q
-        plt.plot(self.mean_q)
-        plt.savefig('doubledqn_mean_q_{0}.jpg'.format(self.network_type))
-        plt.close()
-        plt.plot(self.total_reward)
-        plt.savefig('doubledqn_reward_q_{0}.jpg'.format(self.network_type))
-        plt.close()
-        plt.plot(self.episode_length)
-        plt.savefig('doubledqn_episode_length_q_{0}.jpg'.format(self.network_type))
-        plt.close()
-        
-        plt.plot(self.train_loss)
-        plt.savefig('doubledqn_train_loss_length_q_{0}.jpg'.format(self.network_type))
-        plt.close()
 
 class DQNAgent(QNAgent):
     
@@ -1037,6 +1031,7 @@ class DQNAgent(QNAgent):
         """
     def __init__(self,
              network_type,
+	     agent,
              num_actions,
              preprocessors,
              memory,
@@ -1051,7 +1046,7 @@ class DQNAgent(QNAgent):
              eval_freq=EVALUATION_FREQUENCY,
              batch_size=BATCH_SIZE):
     
-            QNAgent.__init__(self,network_type,num_actions,preprocessors,memory,burnin_policy,training_policy,testing_policy,gamma,alpha,target_update_freq,num_burn_in,train_freq,eval_freq,batch_size)
+            QNAgent.__init__(self,network_type,agent,num_actions,preprocessors,memory,burnin_policy,training_policy,testing_policy,gamma,alpha,target_update_freq,num_burn_in,train_freq,eval_freq,batch_size)
         
         
             if network_type=='LINEAR':
@@ -1160,22 +1155,6 @@ class DQNAgent(QNAgent):
     def save_model(self):
         self.q_network.save_weights('dqn_qn_source_{0}.weight'.format(self.network_type))
 
-    def plot_eval_results(self):
-    
-        print self.mean_q
-        plt.plot(self.mean_q)
-        plt.savefig('dqn_mean_q_{0}.jpg'.format(self.network_type))
-        plt.close()
-        plt.plot(self.total_reward)
-        plt.savefig('dqn_reward_q_{0}.jpg'.format(self.network_type))
-        plt.close()
-        plt.plot(self.episode_length)
-        plt.savefig('dqn_episode_length_q_{0}.jpg'.format(self.network_type))
-        plt.close()
-        
-        plt.plot(self.train_loss)
-        plt.savefig('dqn_train_loss_length_q_{0}.jpg'.format(self.network_type))
-        plt.close()
 
 class DuelingDQNAgent(QNAgent):
     
@@ -1218,6 +1197,7 @@ class DuelingDQNAgent(QNAgent):
         """
     def __init__(self,
                  network_type,
+		 agent,
                  num_actions,
                  preprocessors,
                  memory,
@@ -1232,7 +1212,7 @@ class DuelingDQNAgent(QNAgent):
                  eval_freq=EVALUATION_FREQUENCY,
                  batch_size=BATCH_SIZE):
 
-        QNAgent.__init__(self,network_type,num_actions,preprocessors,memory,burnin_policy,training_policy,testing_policy,gamma,alpha,target_update_freq,num_burn_in,train_freq,eval_freq,batch_size)
+        QNAgent.__init__(self,network_type,agent,num_actions,preprocessors,memory,burnin_policy,training_policy,testing_policy,gamma,alpha,target_update_freq,num_burn_in,train_freq,eval_freq,batch_size)
 
         if network_type=='LINEAR':
 	      self.qt_network  	= self.create_linear_model(window = WINDOW_LENGTH, \
