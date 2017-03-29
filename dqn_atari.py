@@ -99,7 +99,7 @@ def main():  # noqa: D103
     game = 'Enduro-v0'
     env = gym.make(game)
     eval_env = gym.make(game)
-    eval_env = wrappers.Monitor(eval_env,'./video/{0}_{1}'.format(agent,network))
+    eval_env = wrappers.Monitor(eval_env,'./video/{0}_{1}'.format(agent,network),force=True)
 
     if DEBUG:
 	    assert env is not None

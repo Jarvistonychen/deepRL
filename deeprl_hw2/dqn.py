@@ -522,7 +522,7 @@ class QNAgent:
                 #compute the next state, the reward
                 state, reward, is_terminal, debug_info = env.step(action)
 
-		if episode_idx == num_spisodes-1:
+		if episode_idx == num_episodes-1:
 			env.render()
 			print(state)
                 
