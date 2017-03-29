@@ -95,7 +95,7 @@ def main():  # noqa: D103
     ## agent can be DoubleDQNAgent, DQNAgent,FTDQNAgent,DuelingDQNAgent
     agent = 'DoubleDQNAgent'
     ## network can be LINEAR, DEEP
-    network = 'LINEAR'
+    network = 'DEEP'
     game = 'Enduro-v0'
     env = gym.make(game)
     eval_env = gym.make(game)
