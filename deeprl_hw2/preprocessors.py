@@ -73,7 +73,7 @@ class AtariPreprocessor(Preprocessor):
             Basically same as process state for memory, but this time
             outputs float32 images.
             """
-        processed_frame = state.astype('float32') / 255.
+        processed_frame = state.astype('float32')
         return processed_frame
 
     def process_state_for_network(self, state):
@@ -89,7 +89,7 @@ class AtariPreprocessor(Preprocessor):
         #print processed_state.shape
         assert processed_state.shape==(WINDOW_LENGTH,INPUT_SHAPE[0],INPUT_SHAPE[1])
         
-        processed_state = processed_state.astype('float32') / 255.
+        processed_state = processed_state.astype('float32')
         return processed_state
 
     def process_samples_for_network(self, samples):

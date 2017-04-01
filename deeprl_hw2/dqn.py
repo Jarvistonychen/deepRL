@@ -3,6 +3,7 @@
 from keras import optimizers
 from keras.layers import (Activation, Conv2D, Dense, Flatten, Input,Multiply,BatchNormalization)
 from keras.models import Model
+from keras.utils import plot_model
 import numpy as np
 import pickle
 import matplotlib.pyplot as plt
@@ -32,44 +33,6 @@ SAVE_FREQUENCY=1000000
 
 
 class QNAgent:
-    
-    """Class implementing DQN.
-
-    This is a basic outline of the functions/parameters you will need
-    in order to implement the DQNAgnet. This is just to get you
-    started. You may need to tweak the parameters, add new ones, etc.
-
-    Feel free to change the functions and funciton parameters that the
-    class provides.
-
-    We have provided docstrings to go along with our suggested API.
-
-    Parameters
-    ----------
-    q_network: keras.models.Model
-      Your Q-network model.
-    preprocessor: deeprl_hw2.core.Preprocessor
-      The preprocessor class. See the associated classes for more
-      details.
-    memory: deeprl_hw2.core.Memory
-      Your replay memory.
-    gamma: float
-      Discount factor.
-    target_update_freq: float
-      Frequency to update the target network. You can either provide a
-      number representing a soft target update (see utils.py) or a
-      hard target update (see utils.py and Atari paper.)
-    num_burn_in: int
-      Before you begin updating the Q-network your replay memory has
-      to be filled up with some number of samples. This number says
-      how many.
-    train_freq: int
-      How often you actually update your Q-Network. Sometimes
-      stability is improved if you collect a couple samples for your
-      replay memory, for every Q-network update that you run.
-    batch_size: int
-      How many samples in each minibatch.
-    """
     def __init__(self,
                  network_type,
 		 agent,
@@ -118,38 +81,20 @@ class QNAgent:
         self.input_dummymask = np.ones((1,self.num_actions))
         self.input_dummymask_batch=np.ones((self.batch_size, self.num_actions))
 
-    def create_dueling_model(self, window, input_shape, num_actions):  # noqa: D103
-        """Create a deep network for the Q-network model.
-            Parameters
-            ----------
-            window: int
-            Each input to the network is a sequence of frames. This value
-            defines how many frames are in the sequence.
-            input_shape: tuple(int, int)
-            The expected input image size.
-            num_actions: int
-            Number of possible actions. Defined by the gym environment.
-            model_name: str
-            Useful when debugging. Makes the model show up nicer in tensorboard.
-            
-            Returns
-            -------
-            keras.models.Model
-            The Q-model.
-        """
+    def create_dueling_model(self, window, input_shape, num_actions):  
         
         a1 = Input(shape=(window,input_shape[0],input_shape[1]))
         a2 = Input(shape=(num_actions,))
         b = Conv2D(32, (8, 8), strides=4, padding='same',use_bias=True, data_format='channels_first')(a1)
-        bn = BatchNormalization(axis=1)(b)
-        b = Activation ('relu')(bn)
+        #b = BatchNormalization(axis=1)(b)
+        b = Activation ('relu')(b)
         c = Conv2D(64, (4, 4), strides=2, padding='same',use_bias=True, data_format='channels_first')(b)
-        cn = BatchNormalization(axis=1)(c)
-        c = Activation ('relu')(cn)
+        #c = BatchNormalization(axis=1)(c)
+        c = Activation ('relu')(c)
 
         d = Conv2D(64, (3, 3), strides=1, padding='same',use_bias=True, data_format='channels_first')(c)
-        dn = BatchNormalization(axis=1)(d)
-        d = Activation ('relu')(dn)
+        #d = BatchNormalization(axis=1)(d)
+        d = Activation ('relu')(d)
 
         d = Flatten()(d)
         e1 = Dense(512)(d)
@@ -170,34 +115,16 @@ class QNAgent:
                           
         return model
 
-    def create_deep_model(self, window, input_shape, num_actions):  # noqa: D103
-        """Create a deep network for the Q-network model.
-            Parameters
-            ----------
-            window: int
-            Each input to the network is a sequence of frames. This value
-            defines how many frames are in the sequence.
-            input_shape: tuple(int, int)
-            The expected input image size.
-            num_actions: int
-            Number of possible actions. Defined by the gym environment.
-            model_name: str
-            Useful when debugging. Makes the model show up nicer in tensorboard.
-            
-            Returns
-            -------
-            keras.models.Model
-            The Q-model.
-        """
+    def create_deep_model(self, window, input_shape, num_actions):  
         
         a1 = Input(shape=(window,input_shape[0],input_shape[1]))
         a2 = Input(shape=(num_actions,))
         b = Conv2D(16, (8, 8), strides=4, padding='same',use_bias=True, data_format='channels_first')(a1)
-        bn = BatchNormalization(axis=1)(b)
-        b = Activation ('relu')(bn)
+        #b = BatchNormalization(axis=1)(b)
+        b = Activation ('relu')(b)
         c = Conv2D(32, (4, 4), strides=2, padding='same',use_bias=True, data_format='channels_first')(b)
-        cn = BatchNormalization(axis=1)(c)
-        c = Activation ('relu')(cn)
+        #c = BatchNormalization(axis=1)(c)
+        c = Activation ('relu')(c)
         d = Flatten()(c)
         e = Dense(256)(d)
         e = Activation ('relu')(e)
@@ -205,31 +132,12 @@ class QNAgent:
         f = Activation ('linear')(f)
         h = Multiply()([f,a2])
         model = Model(inputs=[a1,a2], outputs=[h])
+
+	plot_model(model, to_file='DQN_model.png')
                           
         return model
 
-
-                          
-    def create_linear_model(self, window, input_shape, num_actions):  # noqa: D103
-        """Create a linear network for the Q-network model.
-            
-            Parameters
-            ----------
-            window: int
-            Each input to the network is a sequence of frames. This value
-            defines how many frames are in the sequence.
-            input_shape: tuple(int, int)
-            The expected input image size.
-            num_actions: int
-            Number of possible actions. Defined by the gym environment.
-            model_name: str
-            Useful when debugging. Makes the model show up nicer in tensorboard.
-            
-            Returns
-            -------
-            keras.models.Model
-            The Q-model.
-            """
+    def create_linear_model(self, window, input_shape, num_actions):  
                 
         a1 = Input(shape=(window,input_shape[0],input_shape[1]))
         a2 = Input(shape=(num_actions,))
@@ -243,7 +151,6 @@ class QNAgent:
 
     def calc_q_values(self, state):
         """Given a state (or batch of states) calculate the Q-values.
-
         Basically run your network on these states.
 
         Return
@@ -466,7 +373,7 @@ class QNAgent:
 
     #computes the q-values achieved by the current network on the random states of the burn-in phase
     def eval_avg_q(self):
-        best_q=np.amax(self.calc_q_values([self.eval_states, self.eval_states_mask]))
+        #best_q=np.amax(self.calc_q_values([self.eval_states, self.eval_states_mask]))
         #assert best_q.shape==(NUM_RAND_STATE,1)
         avg_q=np.mean(np.amax(self.calc_q_values([self.eval_states, self.eval_states_mask]), axis=1))
         return avg_q
@@ -707,7 +614,9 @@ class FTDQNAgent(QNAgent):
             
         if optimizer == 'Adam':
             opti = optimizers.Adam(lr=self.alpha)
-            self.q_network.compile(loss=loss_func, optimizer = opti)
+	elif optimizer == 'RMSProp':
+            opti = optimizers.RMSprop(lr=self.alpha)
+        self.q_network.compile(loss=loss_func, optimizer = opti)
 
     def update_policy(self):
         """Update your policy.
