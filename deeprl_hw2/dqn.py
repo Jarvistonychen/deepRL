@@ -1,5 +1,6 @@
 """Main DQN agent."""
 
+import keras.callbacks as CBS
 from keras import optimizers
 from keras.layers import (Activation, Conv2D, Dense, Flatten, Input,Multiply,BatchNormalization)
 from keras.models import Model
@@ -80,6 +81,9 @@ class QNAgent:
         self.eval_states_mask 	= np.ones((NUM_RAND_STATE, self.num_actions))
         self.input_dummymask = np.ones((1,self.num_actions))
         self.input_dummymask_batch=np.ones((self.batch_size, self.num_actions))
+
+	self.tbCallBack = CBS.TensorBoard(log_dir='./Graph', histogram_freq=0,  \
+          			write_graph=True, write_images=True)
 
     def create_dueling_model(self, window, input_shape, num_actions):  
         
@@ -689,8 +693,10 @@ class FTDQNAgent(QNAgent):
         for ind in range(self.batch_size):
             output_target_batch[ind, mem_samples[ind].action] = mem_samples[ind].reward + self.gamma*best_target_q[ind]
         
-        loss = self.q_network.train_on_batch(x=[input_state_batch, input_mask_batch], y=output_target_batch)
-        self.train_loss.append(loss)
+        #loss = self.q_network.train_on_batch(x=[input_state_batch, input_mask_batch], y=output_target_batch)
+        hist = self.q_network.fit(x=[input_state_batch, input_mask_batch], y=output_target_batch, batch_size=self.batch_size, callbacks=[tbCallBack])
+	print hist.history
+        #self.train_loss.append(loss)
 
 
         #update the target network
