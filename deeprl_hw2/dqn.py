@@ -81,6 +81,9 @@ class QNAgent:
         self.input_dummymask = np.ones((1,self.num_actions))
         self.input_dummymask_batch=np.ones((self.batch_size, self.num_actions))
 
+	self.tbCallBack = keras.callbacks.TensorBoard(log_dir='./Graph', histogram_freq=0,  \
+          			write_graph=True, write_images=True)
+
     def create_dueling_model(self, window, input_shape, num_actions):  
         
         a1 = Input(shape=(window,input_shape[0],input_shape[1]))
@@ -689,8 +692,10 @@ class FTDQNAgent(QNAgent):
         for ind in range(self.batch_size):
             output_target_batch[ind, mem_samples[ind].action] = mem_samples[ind].reward + self.gamma*best_target_q[ind]
         
-        loss = self.q_network.train_on_batch(x=[input_state_batch, input_mask_batch], y=output_target_batch)
-        self.train_loss.append(loss)
+        #loss = self.q_network.train_on_batch(x=[input_state_batch, input_mask_batch], y=output_target_batch)
+        hist = self.q_network.fit(x=[input_state_batch, input_mask_batch], y=output_target_batch, batch_size=self.batch_size, callbacks=[tbCallBack])
+	print hist.history
+        #self.train_loss.append(loss)
 
 
         #update the target network
